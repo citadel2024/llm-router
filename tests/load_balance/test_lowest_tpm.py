@@ -4,8 +4,9 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from src.config import LogConfiguration
-from src.config.config import LLMProviderConfig
+from src.config.config import LLMProviderConfig, LoadBalancerConfig
 from src.load_balance.lowest_tpm import LowestTPMBalancer
+from src.load_balance.strategy import LoadBalancerStrategy
 
 
 class TestLowestTPMBalancer:
@@ -21,8 +22,12 @@ class TestLowestTPMBalancer:
         return logger
 
     @pytest.fixture
-    def balancer(self, mock_cache, mock_logger):
-        return LowestTPMBalancer(mock_cache, mock_logger)
+    def mock_load_balancer_config(self):
+        return LoadBalancerConfig(strategy=LoadBalancerStrategy.LOWEST_TPM_BALANCER)
+
+    @pytest.fixture
+    def balancer(self, mock_cache, mock_logger, mock_load_balancer_config):
+        return LowestTPMBalancer(mock_cache, mock_logger, mock_load_balancer_config)
 
     @pytest.fixture
     def sample_providers(self, balancer):
@@ -36,6 +41,7 @@ class TestLowestTPMBalancer:
         assert result is None
 
     def test_select_provider_no_usage_data(self, balancer, sample_providers, mock_cache):
+        # first call to get_cache returns None, treat all providers tpm as zero, choose first provider
         mock_cache.get_cache.return_value = None
         messages = [{"role": "user", "content": "test"}]
 
@@ -45,19 +51,23 @@ class TestLowestTPMBalancer:
         assert mock_cache.get_cache.call_count == 2
 
     def test_get_usage_data(self, balancer, sample_providers):
+        # first provider has usage data, second provider does not, expect second provider to have zero usage
         cache_keys = {
             "tpm": "test:tpm:00-00",
             "rpm": "test:rpm:00-00"
         }
         existing_tpm = {sample_providers[0].id: 50}
-        balancer.lb_cache.get_cache.side_effect = [existing_tpm, {}]
+        existing_rpm = {sample_providers[0].id: 10}
+        balancer.lb_cache.get_cache.side_effect = [existing_tpm, existing_rpm]
 
         result = balancer._get_usage_data(cache_keys, sample_providers)
 
         assert "tpm" in result
         assert "rpm" in result
         assert result["tpm"][sample_providers[0].id] == 50
-        assert result["tpm"][sample_providers[1].id] == 0
+        assert sample_providers[1].id not in result["tpm"]
+        assert result["rpm"][sample_providers[0].id] == 10
+        assert sample_providers[1].id not in result["rpm"]
 
     @pytest.mark.parametrize("current_tpm,input_tokens,expected_id", [
         (10, 20, "model-1"),  # model-1 has lower current usage
@@ -66,8 +76,8 @@ class TestLowestTPMBalancer:
     ])
     def test_find_optimal_provider(self, balancer, sample_providers, current_tpm, input_tokens, expected_id):
         usage_data = {
-            "tpm": {"model-1": current_tpm, "model-2": current_tpm + 10},
-            "rpm": {"model-1": 5, "model-2": 5}
+            "tpm": {sample_providers[0].id: current_tpm, sample_providers[1].id: current_tpm + 10},
+            "rpm": {sample_providers[0].id: 5, sample_providers[1].id: 5}
         }
         result = balancer._find_optimal_provider(sample_providers, usage_data, input_tokens)
 
@@ -78,7 +88,7 @@ class TestLowestTPMBalancer:
 
     def test_select_lowest_tpm(self, balancer, sample_providers, mock_cache):
         tpm_data = {"model-1": 30, "model-2": 31}
-        rpm_data = {"model-1": 5, "model-2": 8}
+        rpm_data = {sample_providers[0].id: 5, sample_providers[1].id: 8}
 
         mock_cache.get_cache.side_effect = [tpm_data, rpm_data]
 
@@ -91,12 +101,46 @@ class TestLowestTPMBalancer:
 
     def test_select_from_one_candidate(self, balancer, sample_providers, mock_cache):
         tpm_data = {"model-1": 30, "model-2": 31}
-        rpm_data = {"model-1": 10, "model-2": 8}
+        rpm_data = {sample_providers[0].id: 10, sample_providers[1].id: 8}
 
         mock_cache.get_cache.side_effect = [tpm_data, rpm_data]
 
         messages = [{"role": "user", "content": "test message"}]
         result = balancer.schedule_provider("test-group", sample_providers, messages)
+
+        assert result is not None
+        assert result.model_id == "model-2"
+        assert mock_cache.get_cache.call_count == 2
+
+    def test_select_from_empty_rpm(self, balancer, mock_cache):
+        providers = [
+            LLMProviderConfig("model-1", balancer, tpm=100),
+            LLMProviderConfig("model-2", balancer, tpm=200),
+        ]
+        tpm_data = {"model-1": 30, "model-2": 31}
+        rpm_data = {providers[0].id: 1000000, providers[1].id: 1000000}
+
+        mock_cache.get_cache.side_effect = [tpm_data, rpm_data]
+
+        messages = [{"role": "user", "content": "test message"}]
+        result = balancer.schedule_provider("test-group", providers, messages)
+
+        assert result is not None
+        assert result.model_id == "model-1"
+        assert mock_cache.get_cache.call_count == 2
+
+    def test_select_from_empty_tpm(self, balancer, mock_cache):
+        providers = [
+            LLMProviderConfig("model-1", balancer, rpm=10),
+            LLMProviderConfig("model-2", balancer, rpm=10),
+        ]
+        tpm_data = {"model-1": 1000000, "model-2": 1000000}
+        rpm_data = {providers[0].id: 10, providers[1].id: 8}
+
+        mock_cache.get_cache.side_effect = [tpm_data, rpm_data]
+
+        messages = [{"role": "user", "content": "test message"}]
+        result = balancer.schedule_provider("test-group", providers, messages)
 
         assert result is not None
         assert result.model_id == "model-2"
@@ -123,7 +167,7 @@ class TestLowestTPMBalancer:
             expected: bool
     ):
         result = LowestTPMBalancer._is_model_available(
-            model_id=model_id,
+            provider_id=model_id,
             max_tpm=max_tpm,
             max_rpm=max_rpm,
             rpm_dict=rpm_dict,
