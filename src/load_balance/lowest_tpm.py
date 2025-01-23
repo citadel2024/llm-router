@@ -6,7 +6,7 @@ from src.cache.base import BaseCache
 from src.config.config import LogConfiguration, LLMProviderConfig, LoadBalancerConfig
 from src.load_balance.base import BaseLoadBalancer
 from src.message import ChatMessageValues
-from src.token.counter import token_counter
+from src.token.counter import TokenCounter
 
 
 class LowestTPMBalancer(BaseLoadBalancer):
@@ -17,20 +17,23 @@ class LowestTPMBalancer(BaseLoadBalancer):
         :param log_cfg:
         """
         super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
+        self.tc = TokenCounter(log_cfg)
 
-    def schedule_provider(self, model_group: str, healthy_providers: list[LLMProviderConfig],
-                          messages: list[ChatMessageValues] = None) -> Optional[LLMProviderConfig]:
+    def schedule_provider(self, group: str, healthy_providers: list[LLMProviderConfig],
+                          text: Optional[str] = None, messages: list[ChatMessageValues] = None) -> Optional[
+        LLMProviderConfig]:
         current_minute = datetime.now().strftime("%H-%M")
         cache_keys = {
-            "tpm": f"{model_group}:tpm:{current_minute}",
-            "rpm": f"{model_group}:rpm:{current_minute}"
+            "tpm": f"{group}:tpm:{current_minute}",
+            "rpm": f"{group}:rpm:{current_minute}"
         }
-        usage_data = self._get_usage_data(cache_keys, healthy_providers)
-        input_tokens = token_counter(messages=messages)
+        usage_data = self._get_usage_data(cache_keys)
+        # Since we don't choose a model, we try to get the estimated token count from the messages
+        input_tokens = self.tc.token_counter(messages=messages, text=text)
         self.logger.debug(f"input token: {input_tokens}")
         return self._find_optimal_provider(healthy_providers, usage_data, input_tokens)
 
-    def _get_usage_data(self, cache_keys: dict[str, str], providers: list[LLMProviderConfig]) -> dict[str, dict]:
+    def _get_usage_data(self, cache_keys: dict[str, str]) -> dict[str, dict]:
         tpm_dict = self.lb_cache.get_cache(cache_keys["tpm"]) or {}
         rpm_dict = self.lb_cache.get_cache(cache_keys["rpm"]) or {}
         # For tpm dict, we use zero as the default value for providers that are not in the cache
