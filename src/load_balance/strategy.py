@@ -1,8 +1,8 @@
 from enum import Enum
 
 
-class LoadBalanceStrategy(Enum):
-    CAPACITY_BASED_BALANCING = "capacity-based-balancing"
-    LOWEST_TPM_BALANCING = "lowest-tpm-balancing"
-    LATENCY_BASED_BALANCING = "latency-based-balancing"
-    COST_BASED_BALANCING = "cost-based-balancing"
+class LoadBalancerStrategy(Enum):
+    CAPACITY_BASED_BALANCER = "capacity-based-balancer"
+    LOWEST_TPM_BALANCER = "lowest-tpm-balancer"
+    LATENCY_BASED_BALANCER = "latency-based-balancer"
+    COST_BASED_BALANCER = "cost-based-balancer"
