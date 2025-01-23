@@ -8,6 +8,7 @@ dependencies = [
     "openai>=1.59.9",
     "pydantic>=2.10.5",
     "tiktoken>=0.8.0",
+    "tokenizers>=0.21.0",
 ]
 
 [dependency-groups]
