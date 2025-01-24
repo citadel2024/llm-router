@@ -19,21 +19,20 @@ class LowestTPMBalancer(BaseLoadBalancer):
         super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
         self.tc = TokenCounter(log_cfg)
 
-    def schedule_provider(self, group: str, healthy_providers: list[LLMProviderConfig],
-                          text: Optional[str] = None, messages: list[ChatMessageValues] = None) -> Optional[
-        LLMProviderConfig]:
-        current_minute = datetime.now().strftime("%H-%M")
-        cache_keys = {
-            "tpm": f"{group}:tpm:{current_minute}",
-            "rpm": f"{group}:rpm:{current_minute}"
-        }
-        usage_data = self._get_usage_data(cache_keys)
+    def schedule_provider(self, group: str, healthy_providers: list[LLMProviderConfig], text: Optional[str] = None,
+                          messages: list[ChatMessageValues] = None) -> Optional[LLMProviderConfig]:
+        usage_data = self._get_usage_data(group)
         # Since we don't choose a model, we try to get the estimated token count from the messages
         input_tokens = self.tc.token_counter(messages=messages, text=text)
         self.logger.debug(f"input token: {input_tokens}")
         return self._find_optimal_provider(healthy_providers, usage_data, input_tokens)
 
-    def _get_usage_data(self, cache_keys: dict[str, str]) -> dict[str, dict]:
+    def _get_usage_data(self, group: str) -> dict[str, dict]:
+        current_minute = datetime.now().strftime("%H-%M")
+        cache_keys = {
+            "tpm": f"{group}:tpm:{current_minute}",
+            "rpm": f"{group}:rpm:{current_minute}"
+        }
         tpm_dict = self.lb_cache.get_cache(cache_keys["tpm"]) or {}
         rpm_dict = self.lb_cache.get_cache(cache_keys["rpm"]) or {}
         # For tpm dict, we use zero as the default value for providers that are not in the cache

@@ -1,11 +1,10 @@
 import logging
-from typing import Any
 
 import pytest
 
 from src.config import LogConfiguration
 from src.config.config import LLMProviderConfig, RouterConfig, LoadBalancerConfig
-from src.providers.base_provider import BaseLLMProvider
+from tests.mock_provider import MockLLMProvider
 
 
 def test_default_values():
@@ -33,14 +32,6 @@ def test_invalid_stage():
         LogConfiguration(stage="invalid")
 
 
-class MockLLMProvider(BaseLLMProvider):
-    async def chat_completion(self, messages: list[dict[str, str]], **kwargs) -> Any:
-        pass
-
-    async def embedding(self, texts: list[str], **kwargs) -> Any:
-        pass
-
-
 def test_provider_config_type_error():
     gpt3_impl = MockLLMProvider()
     with pytest.raises(TypeError):
@@ -51,7 +42,7 @@ def test_provider_unique_id():
     gpt3_impl = MockLLMProvider()
     gpt3 = LLMProviderConfig(model_id="gpt3", impl=gpt3_impl, rpm=100, tpm=100)
 
-    assert gpt3.id == "f8d1b37b8f2cc0a6cdc71b3e646ec685b9b45b407cd987efbe06d0536a81b02d"
+    assert gpt3.id == "2be8ffd8042afda156a9c8cf50936c0e4192ce47947f9a3e158919038bf6c8a6"
 
 
 def test_failed_init_provider_with_id():

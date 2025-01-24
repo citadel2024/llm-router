@@ -51,16 +51,11 @@ class TestLowestTPMBalancer:
         assert mock_cache.get_cache.call_count == 2
 
     def test_get_usage_data(self, mock_balancer, mock_providers):
-        # first provider has usage data, second provider does not, expect second provider to have zero usage
-        cache_keys = {
-            "tpm": "test:tpm:00-00",
-            "rpm": "test:rpm:00-00"
-        }
         existing_tpm = {mock_providers[0].id: 50}
         existing_rpm = {mock_providers[0].id: 10}
         mock_balancer.lb_cache.get_cache.side_effect = [existing_tpm, existing_rpm]
 
-        result = mock_balancer._get_usage_data(cache_keys)
+        result = mock_balancer._get_usage_data("group")
 
         assert "tpm" in result
         assert "rpm" in result
