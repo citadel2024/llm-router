@@ -1,11 +1,13 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.cache.base import BaseCache
 from src.config.config import LogConfiguration, LLMProviderConfig, LoadBalancerConfig
-from src.load_balance.capacity_based import CapacityBasedBalancer
+from src.utils.context import RouterContext, router_context
 from tests.mock_provider import MockLLMProvider
+from src.load_balance.capacity_based import CapacityBasedBalancer
+from src.load_balance.rpm_tpm_manager import RpmTpmManager
 
 
 @pytest.fixture
@@ -21,7 +23,7 @@ def mock_log_cfg():
 @pytest.fixture
 def mock_lb_config():
     config = MagicMock(spec=LoadBalancerConfig)
-    config.capacity_dimension = "weight"
+    config.capacity_dimension = "rpm"
     return config
 
 
@@ -38,23 +40,54 @@ def mock_provider():
     return provider
 
 
-def test_schedule_provider_returns_none_when_no_healthy_providers(mock_balancer):
-    result = mock_balancer.schedule_provider("test_group", [])
+@pytest.mark.asyncio
+async def test_schedule_provider_returns_none_when_no_healthy_providers(mock_balancer):
+    result = await mock_balancer.schedule_provider("test_group", [])
     assert result is None
 
 
-def test_schedule_provider_returns_none_when_all_over_limit(mock_balancer, mock_provider):
-    with patch.object(mock_balancer, '_filter_over_limit_providers', return_value=[]):
-        result = mock_balancer.schedule_provider("test_group", [mock_provider])
+@pytest.mark.asyncio
+async def test_schedule_provider_returns_none_when_all_over_limit(mock_balancer, mock_provider):
+    with patch.object(mock_balancer, "_filter_over_limit_providers", return_value=[]):
+        result = await mock_balancer.schedule_provider("test_group", [mock_provider])
         assert result is None
         mock_balancer.logger.warning.assert_called_once()
 
 
-def test_schedule_provider_selects_provider_correctly(mock_balancer, mock_provider):
-    with patch.object(mock_balancer, '_filter_over_limit_providers', return_value=[mock_provider]), \
-            patch.object(mock_balancer, '_select_weighted_provider', return_value=mock_provider):
-        result = mock_balancer.schedule_provider("test_group", [mock_provider])
+@pytest.mark.asyncio
+async def test_schedule_provider_selects_provider_correctly(mock_balancer, mock_provider):
+    with patch.object(mock_balancer, "_filter_over_limit_providers", return_value=[mock_provider]), patch.object(
+        mock_balancer, "_select_weighted_provider", return_value=mock_provider
+    ):
+        result = await mock_balancer.schedule_provider("test_group", [mock_provider])
         assert result == mock_provider
+
+
+@pytest.mark.asyncio
+async def test_capacity_based_balancer_exhaust_rpm(mock_lb_cache):
+    provider1 = LLMProviderConfig(model_id="model1", impl=MagicMock(), rpm=5)
+    provider1.id = "provider1"
+    provider2 = LLMProviderConfig(model_id="model2", impl=MagicMock(), rpm=3)
+    provider2.id = "provider2"
+    healthy_providers = [provider1, provider2]
+    balancer = CapacityBasedBalancer(mock_lb_cache, LogConfiguration(), LoadBalancerConfig(capacity_dimension="rpm"))
+    selected_providers = []
+    u0 = RpmTpmManager.Usage(used=0, occupying=0).to_json()
+    u3 = RpmTpmManager.Usage(used=3, occupying=0).to_json()
+    u5 = RpmTpmManager.Usage(used=5, occupying=0).to_json()
+    # The first 5 calls, make provider1 exceed the RPM limit, and the next 3 calls, make provider2 exceed the RPM limit
+    mock_lb_cache.async_get_value = AsyncMock(
+        side_effect=[u0, u3, u0, u3, u0, u3, u0, u3, u0, u3, u5, u0, u5, u0, u5, u0]
+    )
+    for _ in range(8):
+        router_context.set(RouterContext())
+        selected_provider = await balancer.schedule_provider("test_group", healthy_providers)
+        if selected_provider:
+            selected_providers.append(selected_provider.id)
+
+    assert len(selected_providers) == 8
+    assert selected_providers.count("provider1") == 5
+    assert selected_providers.count("provider2") == 3
 
 
 @patch("random.choices")
@@ -79,14 +112,9 @@ def test_select_weighted_provider_with_zero_weights(mock_choice, mock_balancer):
     mock_balancer.logger.debug.assert_called_with("All providers have 0 weight, selecting randomly.")
 
 
-@patch("src.load_balance.capacity_based.datetime")
-def test_filter_over_limit_providers_returns_valid_providers(mock_datetime, mock_balancer, mock_lb_cache):
-    mock_datetime.now.return_value.strftime.return_value = "12-00"
-    mock_lb_cache.get_cache.return_value = {
-        "overlimit_provider": 99,
-        "valid_provider": 50
-    }
-
+@pytest.mark.asyncio
+async def test_filter_over_limit_providers_returns_valid_providers(mock_balancer):
+    mock_balancer.rpm_tpm_manager.rpm_usage_at_minute = AsyncMock(side_effect=[99, 49])
     overlimit_provider = MagicMock(spec=LLMProviderConfig)
     overlimit_provider.id = "overlimit_provider"
     overlimit_provider.rpm = 99
@@ -95,7 +123,5 @@ def test_filter_over_limit_providers_returns_valid_providers(mock_datetime, mock
     valid_provider.id = "valid_provider"
     valid_provider.rpm = 100
 
-    filtered = mock_balancer._filter_over_limit_providers("test_group", [overlimit_provider, valid_provider])
-
+    filtered = await mock_balancer._filter_over_limit_providers("test_group", [overlimit_provider, valid_provider])
     assert filtered == [valid_provider]
-    mock_lb_cache.get_cache.assert_called_once_with("test_group:rpm:12-00")

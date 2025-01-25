@@ -1,11 +1,11 @@
 import random
 from typing import Optional
 
-from src.cache.base import BaseCache
 from src.config import LogConfiguration
-from src.config.config import LoadBalancerConfig, LLMProviderConfig
-from src.load_balance.base import BaseLoadBalancer
+from src.cache.base import BaseCache
+from src.config.config import LLMProviderConfig, LoadBalancerConfig
 from src.message.message import ChatMessageValues
+from src.load_balance.base import BaseLoadBalancer
 
 
 class RandomBalancer(BaseLoadBalancer):
@@ -16,8 +16,13 @@ class RandomBalancer(BaseLoadBalancer):
         """
         super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
 
-    def schedule_provider(self, group: str, healthy_providers: list[LLMProviderConfig], text: Optional[str] = None,
-                          messages: list[ChatMessageValues] = None) -> Optional[LLMProviderConfig]:
+    async def schedule_provider(
+        self,
+        _group: str,
+        healthy_providers: list[LLMProviderConfig],
+        _text: Optional[str] = None,
+        _messages: list[ChatMessageValues] = None,
+    ) -> Optional[LLMProviderConfig]:
         if not healthy_providers:
             return None
         return random.choice(healthy_providers)

@@ -1,12 +1,12 @@
 import math
-from datetime import datetime
 from typing import Optional
 
+from src.message import ChatMessageValues
 from src.cache.base import BaseCache
 from src.config.config import LogConfiguration, LLMProviderConfig, LoadBalancerConfig
-from src.load_balance.base import BaseLoadBalancer
-from src.message import ChatMessageValues
 from src.token.counter import TokenCounter
+from src.load_balance.base import BaseLoadBalancer
+from src.load_balance.rpm_tpm_manager import RpmTpmManager
 
 
 class LowestTPMBalancer(BaseLoadBalancer):
@@ -18,41 +18,34 @@ class LowestTPMBalancer(BaseLoadBalancer):
         """
         super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
         self.tc = TokenCounter(log_cfg)
+        self.rpm_tpm_manager = RpmTpmManager(lb_cache, log_cfg)
 
-    def schedule_provider(self, group: str, healthy_providers: list[LLMProviderConfig], text: Optional[str] = None,
-                          messages: list[ChatMessageValues] = None) -> Optional[LLMProviderConfig]:
-        usage_data = self._get_usage_data(group)
+    async def schedule_provider(
+        self,
+        group: str,
+        healthy_providers: list[LLMProviderConfig],
+        text: Optional[str] = None,
+        messages: list[ChatMessageValues] = None,
+    ) -> Optional[LLMProviderConfig]:
         # Since we don't choose a model, we try to get the estimated token count from the messages
         input_tokens = self.tc.token_counter(messages=messages, text=text)
         self.logger.debug(f"input token: {input_tokens}")
-        return self._find_optimal_provider(healthy_providers, usage_data, input_tokens)
+        return await self._find_optimal_provider(group, healthy_providers, input_tokens)
 
-    def _get_usage_data(self, group: str) -> dict[str, dict]:
-        current_minute = datetime.now().strftime("%H-%M")
-        cache_keys = {
-            "tpm": f"{group}:tpm:{current_minute}",
-            "rpm": f"{group}:rpm:{current_minute}"
-        }
-        tpm_dict = self.lb_cache.get_cache(cache_keys["tpm"]) or {}
-        rpm_dict = self.lb_cache.get_cache(cache_keys["rpm"]) or {}
-        # For tpm dict, we use zero as the default value for providers that are not in the cache
-        # For rpm dict, we only check the usage if the provider is in the cache
-        return {"tpm": tpm_dict, "rpm": rpm_dict}
-
-    def _find_optimal_provider(self, providers: list[LLMProviderConfig], usage_data: dict[str, dict],
-                               input_tokens: int) -> Optional[LLMProviderConfig]:
+    async def _find_optimal_provider(
+        self, group: str, providers: list[LLMProviderConfig], input_tokens: int
+    ) -> Optional[LLMProviderConfig]:
         lowest_tpm = math.inf
         optimal_provider = None
         for provider in providers:
-            current_tpm = usage_data["tpm"].get(provider.id, 0)
+            current_tpm = await self.rpm_tpm_manager.tpm_usage_at_minute(group, provider.id)
             # If user does not have a tpm or rpm limit, we assume it is infinity
             if not self._is_model_available(
-                    provider.id,
-                    provider.tpm or math.inf,
-                    provider.rpm or math.inf,
-                    usage_data["rpm"],
-                    current_tpm,
-                    input_tokens
+                provider.tpm or math.inf,
+                provider.rpm or math.inf,
+                await self.rpm_tpm_manager.rpm_usage_at_minute(group, provider.id),
+                current_tpm,
+                input_tokens,
             ):
                 self.logger.debug(f"Skipping provider {provider.model_id} as it is not available")
                 continue
@@ -62,11 +55,9 @@ class LowestTPMBalancer(BaseLoadBalancer):
         return optimal_provider
 
     @staticmethod
-    def _is_model_available(provider_id: str, max_tpm: float, max_rpm: float, rpm_dict: dict, current_tpm: int,
-                            input_tokens: int) -> bool:
+    def _is_model_available(max_tpm: float, max_rpm: float, rpm: int, current_tpm: int, input_tokens: int) -> bool:
         if current_tpm + input_tokens > max_tpm:
             return False
-        if rpm_dict and provider_id in rpm_dict:
-            if rpm_dict[provider_id] + 1 > max_rpm:
-                return False
+        if rpm + 1 > max_rpm:
+            return False
         return True
