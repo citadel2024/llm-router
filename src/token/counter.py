@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 from enum import Enum
+from typing import Union, Optional
 from functools import lru_cache
-from typing import Optional, Union
+from dataclasses import dataclass
 
 import tiktoken
 from tokenizers import Tokenizer
@@ -12,6 +12,8 @@ from src.router.log import get_logger
 from src.token.func import _format_function_definitions
 
 DEFAULT_IMAGE_TOKEN_COUNT = 250
+
+CL100K_BASE = tiktoken.get_encoding("cl100k_base")
 
 
 def _count_message_tokens(encoding, messages, tokens_per_message, tokens_per_name):
@@ -70,8 +72,6 @@ class TokenCounterFunc:
 
 
 class TokenCounter:
-    CL100K_BASE = tiktoken.get_encoding("cl100k_base")
-
     def __init__(self, log_cfg: LogConfiguration):
         self.logger = get_logger(__name__, log_cfg=log_cfg)
 
@@ -82,16 +82,25 @@ class TokenCounter:
             self.logger.error(f"Could not automatically map {model} to a tokeniser. ")
             return tiktoken.get_encoding("cl100k_base")
 
+    @staticmethod
     @lru_cache(maxsize=128)
-    def _select_tokenizer_helper(self, model: str):
+    def _select_tokenizer_helper(model: str):
         if "llama-3" in model.lower():
             tokenizer = Tokenizer.from_pretrained("Xenova/llama-3-tokenizer")
             return TokenCounterFunc(tokenizer=tokenizer, tokenizer_type=TokenizerType.HuggingFace)
         else:
-            return TokenCounterFunc(tokenizer=self.CL100K_BASE, tokenizer_type=TokenizerType.OpenAI)
+            return TokenCounterFunc(tokenizer=CL100K_BASE, tokenizer_type=TokenizerType.OpenAI)
 
-    def _openai_token_counter(self, model: str, messages=None, text=None, is_tool_call=False,
-                              tools=None, tool_choice=None, count_response_tokens=False):
+    def _openai_token_counter(
+        self,
+        model: str,
+        messages=None,
+        text=None,
+        is_tool_call=False,
+        tools=None,
+        tool_choice=None,
+        count_response_tokens=False,
+    ):
         encoding = self._get_encoding(model)
         tokens_per_message, tokens_per_name = (4, -1) if model == "gpt-3.5-turbo-0301" else (3, 1)
         num_tokens = 0
@@ -117,10 +126,15 @@ class TokenCounter:
                 num_tokens += 7 + len(encoding.encode(tool_choice["function"]["name"]))
         return num_tokens
 
-    def token_counter(self, model: str = "",
-                      text: Optional[str] = None, messages: Optional[list[ChatMessageValues]] = None,
-                      count_response_tokens: bool = False, tools: Optional[list] = None,
-                      tool_choice: Optional[Union[str, dict]] = None) -> int:
+    def token_counter(
+        self,
+        model: str = "",
+        text: Optional[str] = None,
+        messages: Optional[list[ChatMessageValues]] = None,
+        count_response_tokens: bool = False,
+        tools: Optional[list] = None,
+        tool_choice: Optional[Union[str, dict]] = None,
+    ) -> int:
         if text is None and messages is None:
             raise ValueError("text and messages cannot both be None")
         is_tool_call = False
@@ -143,5 +157,5 @@ class TokenCounter:
                     tool_choice=tool_choice,
                 )
         else:
-            num_tokens = len(self.CL100K_BASE.encode(text, disallowed_special=()))
+            num_tokens = len(CL100K_BASE.encode(text, disallowed_special=()))
         return num_tokens
