@@ -3,7 +3,7 @@ import logging
 import pytest
 
 from src.config import LogConfiguration
-from src.config.config import LLMProviderConfig, RouterConfig, LoadBalancerConfig
+from src.config.config import RouterConfig, LLMProviderConfig, LoadBalancerConfig
 from tests.mock_provider import MockLLMProvider
 
 
@@ -134,36 +134,35 @@ def test_to_json():
     actual = rc.to_json()
     # print(rc.to_json(2))
     expect = (
-        '{'
+        "{"
         '  "cooldown_seconds":60,'
         '  "lb_strategy": "LoadBalanceStrategy.CAPACITY_BASED_BALANCING",'
-
         '  "llm_provider_group": {'
         '    "gpt3-level-model": ['
-        '      {'
+        "      {"
         '        "id":"f8d1b37b8f2cc0a6cdc71b3e646ec685b9b45b407cd987efbe06d0536a81b02d",'
         '        "impl": "<tests.config.test_config.MockLLMProvider>", '
         '        "model_id": "gpt3", '
         '        "rpm": 100, '
         '        "tpm": 100'
-        '      }, '
-        '      {'
+        "      }, "
+        "      {"
         '        "id":"08a9167a804d07b07ad515a901a58da2b4d64a890e9db347aac981c28dfe17bc",'
         '        "impl": "<tests.config.test_config.MockLLMProvider>", '
         '        "model_id": "llama", '
         '        "rpm": 100, '
         '        "tpm": 100'
-        '      }'
-        '    ]'
-        '  }, '
+        "      }"
+        "    ]"
+        "  }, "
         '  "log_config": {'
         '    "level": 10,'
         '    "log_dir": "logs",'
         '    "stage": "dev"'
-        '  },'
+        "  },"
         '  "num_retries":3,'
         '  "retry_policy":null,'
         '  "timeout_seconds":30'
-        '}'
+        "}"
     )
     assert actual == expect.replace(" ", "")

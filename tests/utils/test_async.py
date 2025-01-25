@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -40,7 +40,7 @@ def test_run_async_function_handles_exceptions():
         run_async_function(failing_async_function)
 
 
-@patch('concurrent.futures.ThreadPoolExecutor')
+@patch("concurrent.futures.ThreadPoolExecutor")
 def test_run_async_function_uses_thread_pool_when_in_loop(mock_executor):
     mock_pool = MagicMock()
     mock_future = MagicMock()
@@ -72,10 +72,7 @@ async def test_nested_calls():
 
 def test_multiple_concurrent_calls():
     async def run_multiple():
-        tasks = [
-            asyncio.create_task(sample_async_function(i))
-            for i in range(5)
-        ]
+        tasks = [asyncio.create_task(sample_async_function(i)) for i in range(5)]
         results = await asyncio.gather(*tasks)
         return results
 

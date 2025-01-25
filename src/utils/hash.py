@@ -1,5 +1,5 @@
-import hashlib
 import uuid
+import hashlib
 
 
 def generate_unique_id(ordered_json: str):
@@ -9,7 +9,7 @@ def generate_unique_id(ordered_json: str):
     :return:
     """
     try:
-        hash_object = hashlib.sha256(ordered_json.encode('utf-8'))
+        hash_object = hashlib.sha256(ordered_json.encode("utf-8"))
         return hash_object.hexdigest()
     except Exception:
-        return str(uuid.uuid4()).replace('-', '')
+        return str(uuid.uuid4()).replace("-", "")

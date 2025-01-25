@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, asdict, field
-from typing import Literal, Union, Optional
+from typing import Union, Literal, Optional
+from dataclasses import field, asdict, dataclass
 
+from src.utils.hash import generate_unique_id
+from src.router.retry import RetryPolicy
 from src.load_balance.strategy import LoadBalancerStrategy
 from src.providers.base_provider import BaseLLMProvider
-from src.router.retry import RetryPolicy
-from src.utils.hash import generate_unique_id
 
 
 @dataclass
@@ -43,12 +43,18 @@ class LLMProviderConfig:
         :param indent:
         :return:
         """
-        return json.dumps({
-            "model_id": self.model_id,
-            "impl": self.impl.__repr__(),
-            "rpm": self.rpm,
-            "tpm": self.tpm,
-        }, default=str, indent=indent, separators=(",", ":"), sort_keys=True)
+        return json.dumps(
+            {
+                "model_id": self.model_id,
+                "impl": self.impl.__repr__(),
+                "rpm": self.rpm,
+                "tpm": self.tpm,
+            },
+            default=str,
+            indent=indent,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
 
 
 @dataclass
