@@ -6,7 +6,7 @@ from typing import Union, Literal, Optional
 from dataclasses import field, asdict, dataclass
 
 from src.utils.hash import generate_unique_id
-from src.router.retry import RetryPolicy
+from src.config.retry import RetryPolicy
 from src.load_balance.strategy import LoadBalancerStrategy
 from src.providers.base_provider import BaseLLMProvider
 
