@@ -131,7 +131,7 @@ def test_to_json():
     rc = RouterConfig(
         llm_provider_group={"gpt3-level-model": [gpt3, llama]},
     )
-    actual = rc.to_json()
+    actual = rc.serialize()
     # print(rc.to_json(2))
     expect = (
         "{"

@@ -50,8 +50,8 @@ async def test_select_provider_with_no_providers(mock_balancer):
 @pytest.mark.asyncio
 async def test_select_provider_no_usage_data(mock_balancer, mock_providers, mock_cache):
     # first call to get_cache returns None, treat all providers tpm as zero, choose first provider
-    tpm_data1 = RpmTpmManager.Usage(used=0, occupying=0).to_json()
-    rpm_data1 = RpmTpmManager.Usage(used=0, occupying=0).to_json()
+    tpm_data1 = RpmTpmManager.Usage(used=0, occupying=0).serialize()
+    rpm_data1 = RpmTpmManager.Usage(used=0, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data1, rpm_data1])
     messages = [{"role": "user", "content": "test"}]
     router_context.set(RouterContext())
@@ -71,9 +71,9 @@ async def test_select_provider_no_usage_data(mock_balancer, mock_providers, mock
     ],
 )
 async def test_find_optimal_provider(mock_balancer, mock_cache, mock_providers, current_tpm, input_tokens, expected_id):
-    tpm_data1 = RpmTpmManager.Usage(used=current_tpm, occupying=0).to_json()
-    tpm_data2 = RpmTpmManager.Usage(used=current_tpm + 10, occupying=0).to_json()
-    rpm_data = RpmTpmManager.Usage(used=5, occupying=0).to_json()
+    tpm_data1 = RpmTpmManager.Usage(used=current_tpm, occupying=0).serialize()
+    tpm_data2 = RpmTpmManager.Usage(used=current_tpm + 10, occupying=0).serialize()
+    rpm_data = RpmTpmManager.Usage(used=5, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data, tpm_data2, rpm_data])
     router_context.set(RouterContext())
     result = await mock_balancer._find_optimal_provider("group", mock_providers, input_tokens)
@@ -86,10 +86,10 @@ async def test_find_optimal_provider(mock_balancer, mock_cache, mock_providers, 
 
 @pytest.mark.asyncio
 async def test_select_lowest_tpm(mock_balancer, mock_providers, mock_cache):
-    tpm_data1 = RpmTpmManager.Usage(used=30, occupying=0).to_json()
-    tpm_data2 = RpmTpmManager.Usage(used=31, occupying=0).to_json()
-    rpm_data1 = RpmTpmManager.Usage(used=5, occupying=0).to_json()
-    rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).to_json()
+    tpm_data1 = RpmTpmManager.Usage(used=30, occupying=0).serialize()
+    tpm_data2 = RpmTpmManager.Usage(used=31, occupying=0).serialize()
+    rpm_data1 = RpmTpmManager.Usage(used=5, occupying=0).serialize()
+    rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data2, rpm_data2])
     messages = [{"role": "user", "content": "test message"}]
     router_context.set(RouterContext())
@@ -102,10 +102,10 @@ async def test_select_lowest_tpm(mock_balancer, mock_providers, mock_cache):
 
 @pytest.mark.asyncio
 async def test_select_from_one_candidate(mock_balancer, mock_providers, mock_cache):
-    tpm_data1 = RpmTpmManager.Usage(used=30, occupying=0).to_json()
-    tpm_data2 = RpmTpmManager.Usage(used=31, occupying=0).to_json()
-    rpm_data1 = RpmTpmManager.Usage(used=10, occupying=0).to_json()
-    rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).to_json()
+    tpm_data1 = RpmTpmManager.Usage(used=30, occupying=0).serialize()
+    tpm_data2 = RpmTpmManager.Usage(used=31, occupying=0).serialize()
+    rpm_data1 = RpmTpmManager.Usage(used=10, occupying=0).serialize()
+    rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data2, rpm_data2])
 
     messages = [{"role": "user", "content": "test message"}]
@@ -123,9 +123,9 @@ async def test_select_from_empty_rpm(mock_balancer, mock_cache):
         LLMProviderConfig("model-1", mock_balancer, tpm=100),
         LLMProviderConfig("model-2", mock_balancer, tpm=200),
     ]
-    rpm_data = RpmTpmManager.Usage(used=1000000, occupying=0).to_json()
-    tpm_data1 = RpmTpmManager.Usage(used=30, occupying=0).to_json()
-    tpm_data2 = RpmTpmManager.Usage(used=31, occupying=0).to_json()
+    rpm_data = RpmTpmManager.Usage(used=1000000, occupying=0).serialize()
+    tpm_data1 = RpmTpmManager.Usage(used=30, occupying=0).serialize()
+    tpm_data2 = RpmTpmManager.Usage(used=31, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data, tpm_data2, rpm_data])
 
     messages = [{"role": "user", "content": "test message"}]
@@ -143,9 +143,9 @@ async def test_select_from_empty_tpm(mock_balancer, mock_cache):
         LLMProviderConfig("model-1", mock_balancer, rpm=10),
         LLMProviderConfig("model-2", mock_balancer, rpm=10),
     ]
-    rpm_data1 = RpmTpmManager.Usage(used=10, occupying=0).to_json()
-    rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).to_json()
-    tpm_data1 = RpmTpmManager.Usage(used=1000000, occupying=0).to_json()
+    rpm_data1 = RpmTpmManager.Usage(used=10, occupying=0).serialize()
+    rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).serialize()
+    tpm_data1 = RpmTpmManager.Usage(used=1000000, occupying=0).serialize()
 
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data1, rpm_data2])
 

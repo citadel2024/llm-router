@@ -72,9 +72,9 @@ async def test_capacity_based_balancer_exhaust_rpm(mock_lb_cache):
     healthy_providers = [provider1, provider2]
     balancer = CapacityBasedBalancer(mock_lb_cache, LogConfiguration(), LoadBalancerConfig(capacity_dimension="rpm"))
     selected_providers = []
-    u0 = RpmTpmManager.Usage(used=0, occupying=0).to_json()
-    u3 = RpmTpmManager.Usage(used=3, occupying=0).to_json()
-    u5 = RpmTpmManager.Usage(used=5, occupying=0).to_json()
+    u0 = RpmTpmManager.Usage(used=0, occupying=0).serialize()
+    u3 = RpmTpmManager.Usage(used=3, occupying=0).serialize()
+    u5 = RpmTpmManager.Usage(used=5, occupying=0).serialize()
     # The first 5 calls, make provider1 exceed the RPM limit, and the next 3 calls, make provider2 exceed the RPM limit
     mock_lb_cache.async_get_value = AsyncMock(
         side_effect=[u0, u3, u0, u3, u0, u3, u0, u3, u0, u3, u5, u0, u5, u0, u5, u0]
@@ -114,7 +114,7 @@ def test_select_weighted_provider_with_zero_weights(mock_choice, mock_balancer):
 
 @pytest.mark.asyncio
 async def test_filter_over_limit_providers_returns_valid_providers(mock_balancer):
-    mock_balancer.rpm_tpm_manager.rpm_usage_at_minute = AsyncMock(side_effect=[99, 49])
+    mock_balancer.mock_rpm_tpm_manager.rpm_usage_at_minute = AsyncMock(side_effect=[99, 49])
     overlimit_provider = MagicMock(spec=LLMProviderConfig)
     overlimit_provider.id = "overlimit_provider"
     overlimit_provider.rpm = 99
