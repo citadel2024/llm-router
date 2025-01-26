@@ -1,27 +1,29 @@
-import asyncio
 import json
 import time
-from dataclasses import asdict, dataclass
+import asyncio
 from datetime import datetime
+from dataclasses import asdict, dataclass
 
-from src.cache.base import BaseCache
 from src.config import LogConfiguration
+from src.cache.base import BaseCache
+from src.router.log import get_logger
 from src.config.config import LLMProviderConfig
 from src.config.cooldown import CooldownConfig
 from src.exceptions.exceptions import (
+    NotFoundError,
     APIStatusError,
     RateLimitError,
     BadRequestError,
     ModelGroupNotFound,
     AuthenticationError,
     RequestTimeoutError,
-    ContentPolicyViolationError, NotFoundError,
+    ContentPolicyViolationError,
 )
-from src.router.log import get_logger
 
 DEFAULT_CACHE_EXPIRED_SECONDS = 60 * 60
 CLIENT_ERROR_MIN_STATUS = 400
 CLIENT_ERROR_MAX_STATUS = 500
+
 
 @dataclass
 class CooldownState:
@@ -45,13 +47,13 @@ class ProviderStatusManager:
     _TEMPORARY_EXCEPTIONS = (RequestTimeoutError,)
 
     def __init__(
-            self,
-            log_cfg: LogConfiguration,
-            provider_groups: dict[str, list[LLMProviderConfig]],
-            cooldown_config: CooldownConfig,
-            cache: BaseCache,
+        self,
+        log_cfg: LogConfiguration,
+        provider_groups: dict[str, list[LLMProviderConfig]],
+        cooldown_config: CooldownConfig,
+        cache: BaseCache,
     ):
-        self._cache = cache
+        self.cache = cache
         self.logger = get_logger(__name__, log_cfg)
         self.provider_groups = provider_groups
         self.allowed_fails_policy = cooldown_config.allowed_fails_policy
@@ -105,13 +107,13 @@ class ProviderStatusManager:
         :return:
         """
         key = self._build_cooldown_key(provider_id)
-        await self._cache.async_set_value(
+        await self.cache.async_set_value(
             key,
             CooldownState(
                 exception=exception,
                 timestamp=time.time(),
                 cooldown_seconds=self.cooldown_seconds,
-            ).to_json(),
+            ).serialize(),
             ttl=DEFAULT_CACHE_EXPIRED_SECONDS,
         )
         self.logger.info(f"Provider {provider_id} added to cooldown due to '{exception}'")
@@ -125,10 +127,10 @@ class ProviderStatusManager:
         """
         # Get the expiration time for the provider
         key = self._build_cooldown_key(provider_id)
-        data = await self._cache.async_get_value(key)
+        data = await self.cache.async_get_value(key)
         if data is None:
             return False
-        cooldown_state = CooldownState.from_json(data)
+        cooldown_state = CooldownState.deserialize(data)
         return not cooldown_state.is_expired()
 
     async def _should_cooldown(self, provider_id: str, original_exception: APIStatusError) -> bool:
@@ -148,12 +150,12 @@ class ProviderStatusManager:
         key = self._build_fail_calls_key(provider_id)
         lock = self._fetch_or_create_lock(key)
         async with lock:
-            current_fails = await self._cache.async_get_value(key) or 0
+            current_fails = await self.cache.async_get_value(key) or 0
             updated_fails = current_fails + 1
 
             if updated_fails > allowed_fails:
                 return True
-            await self._cache.async_set_value(key, updated_fails, ttl=DEFAULT_CACHE_EXPIRED_SECONDS)
+            await self.cache.async_set_value(key, updated_fails, ttl=DEFAULT_CACHE_EXPIRED_SECONDS)
             return False
 
     def _get_allowed_fails_from_policy(self, exception: APIStatusError):
@@ -193,6 +195,7 @@ class ProviderStatusManager:
 
     def _is_cooldown_required_for_exception(self, exception: APIStatusError) -> bool:
         """
+        Return True if exception is in critical exceptions, or http code >= 500
         :param exception:
         :return:
         """
