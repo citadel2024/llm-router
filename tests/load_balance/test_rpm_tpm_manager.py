@@ -141,4 +141,6 @@ async def test_update_usage_no_data_logs_error(mock_rpm_tpm_manager, mock_cache)
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):
         await mock_rpm_tpm_manager.update_rpm_used_usage("group1", "provider1")
 
-    mock_rpm_tpm_manager.logger.error.assert_called_once_with("No usage data found for rpm:group1:provider1:202310101200")
+    mock_rpm_tpm_manager.logger.error.assert_called_once_with(
+        "No usage data found for rpm:group1:provider1:202310101200"
+    )

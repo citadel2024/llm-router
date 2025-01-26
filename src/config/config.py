@@ -6,8 +6,9 @@ from typing import Union, Literal, Optional
 from dataclasses import field, asdict, dataclass
 
 from src.utils.hash import generate_unique_id
-from src.config.retry import RetryPolicy
-from src.load_balance.strategy import LoadBalancerStrategy
+from src.config.retry import RetryConfig
+from src.config.cooldown import CooldownConfig
+from src.config.strategy import LoadBalancerStrategy
 from src.providers.base_provider import BaseLLMProvider
 
 
@@ -35,9 +36,9 @@ class LLMProviderConfig:
 
     def __post_init__(self):
         # The provider can not be same.
-        self.id = generate_unique_id(self.to_json())
+        self.id = generate_unique_id(self.serialize())
 
-    def to_json(self, indent: Optional[int] = None):
+    def serialize(self, indent: Optional[int] = None):
         """
         Convert the object to a compact JSON string ordered by keys.
         :param indent:
@@ -69,19 +70,24 @@ class LoadBalancerConfig:
 
 
 @dataclass
+class FallbackConfig:
+    # fallback model group to another, {"GPT-4": ["GPT-3.5"]}
+    fallback_mapping: dict[str, list[str]]
+
+
+@dataclass
 class RouterConfig:
     # group name must be unique, so we use dict instead of list
     llm_provider_group: dict[str, list[LLMProviderConfig]]
 
     log_config: LogConfiguration = field(default_factory=LogConfiguration)
     load_balancer_config: LoadBalancerConfig = field(default_factory=LoadBalancerConfig)
-    # The cooldown duration (in seconds) for the provider if num_fails exceeds `allowed_fails`. Default is 60.
-    cooldown_seconds: int = 60
-    num_retries: int = 3
-    retry_policy: Optional[RetryPolicy] = None
+    retry_config: RetryConfig = field(default_factory=RetryConfig)
+    fallback_config: FallbackConfig = field(default_factory=FallbackConfig)
+    cooldown_config: CooldownConfig = field(default_factory=CooldownConfig)
     timeout_seconds: int = 30
 
-    def to_json(self, indent: Optional[int] = None):
+    def serialize(self, indent: Optional[int] = None):
         """
         Convert the object to a compact JSON string ordered by keys.
         :param indent:

@@ -1,6 +1,7 @@
+import json
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 @dataclass
@@ -12,6 +13,9 @@ class RetryPolicy:
     ContentPolicyViolationErrorRetries: Optional[int] = None
     InternalServerErrorRetries: Optional[int] = None
 
+    def serialize(self):
+        return json.dumps(asdict(self))
+
 
 class RetryStrategy(Enum):
     EXPONENTIAL_BACKOFF = "exponential_backoff_retry"
@@ -20,8 +24,6 @@ class RetryStrategy(Enum):
 
 @dataclass
 class RetryConfig:
-    fallbacks: list[str] = None
-    context_window_fallbacks: list[str] = None
-    content_policy_fallbacks: list[str] = None
-    retry_policy: dict = None
-    model_group_retry_policy: dict = None
+    max_attempt: int = 3
+    retry_policy: Optional[RetryPolicy] = None
+    retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF
