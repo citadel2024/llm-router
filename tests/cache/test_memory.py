@@ -19,14 +19,16 @@ async def mock_cache(mock_log_cfg):
         log_cfg=mock_log_cfg, max_size_in_memory=2, default_ttl=3600, cleanup_interval=5, num_buckets=1
     )
     await instance.start_cleanup_task()
-    return instance
+    yield instance
+    await instance.stop_cleanup_task()
 
 
 @pytest_asyncio.fixture
 async def mock_cache_small(mock_log_cfg):
     instance = MemoryCache(log_cfg=mock_log_cfg, max_size_in_memory=2, default_ttl=1, cleanup_interval=1, num_buckets=1)
     await instance.start_cleanup_task()
-    return instance
+    yield instance
+    await instance.stop_cleanup_task()
 
 
 @pytest.mark.asyncio

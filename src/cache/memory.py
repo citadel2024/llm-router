@@ -36,6 +36,15 @@ class MemoryCache(BaseCache):
         if not self.cleanup_task:
             self.cleanup_task = asyncio.create_task(self._periodic_cleanup())
 
+    async def stop_cleanup_task(self):
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            try:
+                await self.cleanup_task
+            except asyncio.CancelledError:
+                self.logger.warning("Cleanup task was cancelled")
+            self.cleanup_task = None
+
     def _get_bucket_index(self, key: str) -> int:
         """
         Hash based on the key
