@@ -114,7 +114,7 @@ def test_select_weighted_provider_with_zero_weights(mock_choice, mock_balancer):
 
 @pytest.mark.asyncio
 async def test_filter_over_limit_providers_returns_valid_providers(mock_balancer):
-    mock_balancer.mock_rpm_tpm_manager.rpm_usage_at_minute = AsyncMock(side_effect=[99, 49])
+    mock_balancer.rpm_tpm_manager.rpm_usage_at_minute = AsyncMock(side_effect=[99, 49])
     overlimit_provider = MagicMock(spec=LLMProviderConfig)
     overlimit_provider.id = "overlimit_provider"
     overlimit_provider.rpm = 99

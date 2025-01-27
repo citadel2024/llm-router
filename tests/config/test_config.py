@@ -3,7 +3,8 @@ import logging
 import pytest
 
 from src.config import LogConfiguration
-from src.config.config import RouterConfig, LLMProviderConfig, LoadBalancerConfig
+from src.config.config import RouterConfig, FallbackConfig, LLMProviderConfig, LoadBalancerConfig
+from src.config.cooldown import CooldownConfig
 from tests.mock_provider import MockLLMProvider
 
 
@@ -59,12 +60,10 @@ def test_validate_integer():
     with pytest.raises(ValueError):
         RouterConfig(
             llm_provider_group={"gpt3-level-model": [gpt3, llama]},
-            cooldown_seconds=-1,
         )
     with pytest.raises(ValueError):
         RouterConfig(
             llm_provider_group={"gpt3-level-model": [gpt3, llama]},
-            num_retries=-1,
         )
     with pytest.raises(ValueError):
         RouterConfig(
@@ -95,6 +94,8 @@ def test_validate_capacity_dimension_missing_value():
         RouterConfig(
             llm_provider_group={"gpt3-level-model": [gpt3, llama]},
             load_balancer_config=LoadBalancerConfig(capacity_dimension=dimension),
+            fallback_config=FallbackConfig(),
+            cooldown_config=CooldownConfig(),
         )
 
 

@@ -1,5 +1,8 @@
+import json
 from typing import Optional
-from dataclasses import field, dataclass
+from dataclasses import field, asdict, dataclass
+
+from src.router.validator import validate_integer
 
 
 @dataclass
@@ -16,6 +19,9 @@ class AllowedFailsPolicy:
     ContentPolicyViolationErrorAllowedFails: Optional[int] = None
     InternalServerErrorAllowedFails: Optional[int] = None
 
+    def serialize(self):
+        return json.dumps(asdict(self))
+
 
 @dataclass
 class CooldownConfig:
@@ -26,3 +32,7 @@ class CooldownConfig:
     cooldown_seconds: int = 60
     general_allowed_fails: int = 3
     allowed_fails_policy: AllowedFailsPolicy = field(default_factory=AllowedFailsPolicy)
+
+    def __post_init__(self):
+        for i in ["cooldown_seconds", "general_allowed_fails"]:
+            validate_integer(self, i)

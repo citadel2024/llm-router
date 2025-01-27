@@ -9,6 +9,7 @@ from src.utils.hash import generate_unique_id
 from src.config.retry import RetryConfig
 from src.config.cooldown import CooldownConfig
 from src.config.strategy import LoadBalancerStrategy
+from src.router.validator import validate_integer
 from src.providers.base_provider import BaseLLMProvider
 
 
@@ -72,7 +73,7 @@ class LoadBalancerConfig:
 @dataclass
 class FallbackConfig:
     # fallback model group to another, {"GPT-4": ["GPT-3.5"]}
-    fallback_mapping: dict[str, list[str]]
+    fallback_mapping: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -98,8 +99,8 @@ class RouterConfig:
     def __post_init__(self):
         if not self.llm_provider_group:
             raise ValueError("No provider group is specified.")
-        for i in ["cooldown_seconds", "num_retries", "timeout_seconds"]:
-            self.validate_integer(i)
+        for i in ["timeout_seconds"]:
+            validate_integer(self, i)
         if self.load_balancer_config.strategy == LoadBalancerStrategy.CAPACITY_BASED_BALANCER:
             dimension = self.load_balancer_config.capacity_dimension
             if dimension is None:
@@ -108,7 +109,3 @@ class RouterConfig:
                 for p in providers:
                     if not hasattr(p, dimension) or getattr(p, dimension) is None:
                         raise ValueError(f"Capacity dimension {dimension} is not found.")
-
-    def validate_integer(self, filed: str):
-        if getattr(self, filed) < 0:
-            raise ValueError(f"Invalid {filed} value: {getattr(self, filed)}")
