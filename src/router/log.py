@@ -1,8 +1,10 @@
+import os
 import json
 import logging
-import os
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
+
+from src.config.config import LogConfiguration
 
 
 class ColorCodes:
@@ -36,7 +38,7 @@ class JsonFormatter(logging.Formatter):
     def __init__(self):
         super().__init__()
 
-    def formatTime(self, record, datefmt=None):
+    def formatTime(self, record, _fmt=None):
         dt = datetime.fromtimestamp(record.created)
         return dt.isoformat()
 
@@ -51,30 +53,32 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(json_record)
 
 
-def get_logger(stage: str = "dev") -> logging.Logger:
+def get_logger(name: str, log_cfg: LogConfiguration) -> logging.Logger:
     """
-    :param stage:
+    Get a logger instance
+    :param name: logger name
+    :param log_cfg: logger configuration
     :return:
     """
-    name = "app"
-    log_dir = "logs"
     logger = logging.getLogger(name)
     if logger.handlers:
-        logger.debug("Logger already configured")
+        logger.warning("Logger already configured")
         return logger
-
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    if stage == "dev":
-        logger.setLevel(logging.DEBUG)
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s"
+    logger.setLevel(log_cfg.level)
+    if log_cfg.stage == "dev":
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(ColorFormatter(log_format))
         logger.addHandler(console_handler)
     else:
-        logger.setLevel(logging.INFO)
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        if not os.path.exists(log_cfg.log_dir):
+            os.makedirs(log_cfg.log_dir)
         file_handler = TimedRotatingFileHandler(
-            filename=os.path.join(log_dir, f"{name}.log"), when="midnight", interval=1, backupCount=30, encoding="utf-8"
+            filename=os.path.join(log_cfg.log_dir, "router.log"),
+            when="midnight",
+            interval=1,
+            backupCount=30,
+            encoding="utf-8",
         )
         file_handler.setFormatter(JsonFormatter())
         logger.addHandler(file_handler)
