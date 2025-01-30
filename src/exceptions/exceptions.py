@@ -2,7 +2,7 @@ from typing import Literal, Optional
 
 import httpx
 
-from src.model.request import RouterInput
+from src.model.input import RouterInput
 
 
 class RouterError(Exception):
@@ -107,7 +107,7 @@ class RateLimitError(APIStatusError):
     status_code: Literal[429] = 429
 
 
-class RetryExhaustedError(APIStatusError):
+class RetryExhaustedError(BadRequestError):
     last_exception: Exception
     retry_count: int
 
