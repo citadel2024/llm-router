@@ -11,6 +11,7 @@ from src.exceptions.exceptions import (
     RetryExhaustedError,
     APIConnectionRefusedError,
     APINetworkUnreachableError,
+    ContextWindowExceededError,
     ContentPolicyViolationError,
 )
 
@@ -20,6 +21,7 @@ def test_api_network_unreachable_error(mocker):
     error = APINetworkUnreachableError(mock_request)
     assert error.message == "Network is unreachable"
     assert error.request is mock_request
+    assert error.is_retryable()
 
 
 def test_api_connection_refused_error(mocker):
@@ -28,6 +30,7 @@ def test_api_connection_refused_error(mocker):
     error = APIConnectionRefusedError(request=mock_request)
     assert error.message == "Connection refused by http://failed.url"
     assert error.request is mock_request
+    assert error.is_retryable()
 
 
 def test_api_status_error_default_response():
@@ -45,6 +48,18 @@ def test_bad_request_error_validation(mocker):
     mock_response.headers = {}
     error = BadRequestError("message", response=mock_response)
     assert error.status_code == 400
+    assert not error.is_retryable()
+    assert not error.is_fallback()
+
+
+def test_context_window_error_validation(mocker):
+    mock_response = mocker.Mock(spec=httpx.Response)
+    mock_response.status_code = 400
+    mock_response.headers = {}
+    error = ContextWindowExceededError("message", response=mock_response)
+    assert error.status_code == 400
+    assert not error.is_retryable()
+    assert error.is_fallback()
 
 
 def test_invalid_status_code_validation():
@@ -62,6 +77,8 @@ def test_retry_exhausted_error_attributes():
     )
     assert error.last_exception is mock_exception
     assert error.retry_count == 3
+    assert not error.is_retryable()
+    assert not error.is_fallback()
 
 
 def test_content_policy_error_inheritance():

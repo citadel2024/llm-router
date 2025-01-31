@@ -5,8 +5,20 @@ import httpx
 from src.model.input import RouterInput
 
 
-class RouterError(Exception):
-    pass
+class RetryMixin:
+    retryable: bool = False
+
+
+class FallbackMixin:
+    fallback: bool = False
+
+
+class RouterError(Exception, RetryMixin, FallbackMixin):
+    def is_retryable(self):
+        return self.retryable
+
+    def is_fallback(self):
+        return self.fallback
 
 
 class APIError(RouterError):
@@ -25,6 +37,8 @@ class APIError(RouterError):
 
 
 class APIConnectionError(APIError):
+    retryable = True
+
     def __init__(self, message: str = "Connection error", *, request: httpx.Request) -> None:
         super().__init__(message, request, body=None)
 
@@ -83,6 +97,10 @@ class InvalidInputError(BadRequestError):
     pass
 
 
+class ContextWindowExceededError(BadRequestError):
+    fallback = True
+
+
 class ContentPolicyViolationError(BadRequestError):
     pass
 
@@ -101,10 +119,12 @@ class ModelGroupNotFound(NotFoundError):
 
 class RequestTimeoutError(APIStatusError):
     status_code: Literal[408] = 408
+    retryable = True
 
 
 class RateLimitError(APIStatusError):
     status_code: Literal[429] = 429
+    retryable = True
 
 
 class RetryExhaustedError(BadRequestError):
