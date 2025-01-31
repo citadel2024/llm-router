@@ -3,10 +3,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.config import LogConfiguration
-from src.config.config import LLMProviderConfig, LoadBalancerConfig
+from src.config import LogConfiguration, LoadBalancerConfig, LoadBalancerStrategy
+from src.config.config import LLMProviderConfig
 from src.utils.context import RouterContext, router_context
-from src.config.strategy import LoadBalancerStrategy
 from src.load_balance.lowest_tpm import LowestTPMBalancer
 from src.load_balance.rpm_tpm_manager import RpmTpmManager
 

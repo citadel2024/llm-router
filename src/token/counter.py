@@ -7,9 +7,9 @@ import tiktoken
 from tokenizers import Tokenizer
 
 from src.config import LogConfiguration
-from src.message import ChatMessageValues
 from src.router.log import get_logger
 from src.token.func import _format_function_definitions
+from src.model.message import ChatMessageValues
 
 DEFAULT_IMAGE_TOKEN_COUNT = 250
 

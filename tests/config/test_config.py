@@ -2,9 +2,8 @@ import logging
 
 import pytest
 
-from src.config import LogConfiguration
-from src.config.config import RouterConfig, FallbackConfig, LLMProviderConfig, LoadBalancerConfig
-from src.config.cooldown import CooldownConfig
+from src.config import CooldownConfig, FallbackConfig, LogConfiguration, LoadBalancerConfig
+from src.config.config import RouterConfig, LLMProviderConfig
 from tests.mock_provider import MockLLMProvider
 
 
@@ -48,7 +47,7 @@ def test_provider_unique_id():
 
 def test_failed_init_provider_with_id():
     gpt3_impl = MockLLMProvider()
-    with pytest.raises(TypeError, match="LLMProviderConfig\.__init__\(\) got an unexpected keyword argument 'id'"):
+    with pytest.raises(TypeError, match="LLMProviderConfig\\.__init__\\(\\) got an unexpected keyword argument 'id'"):
         LLMProviderConfig(model_id="gpt3", impl=gpt3_impl, rpm=-1, tpm=100, id=1)
 
 

@@ -1,7 +1,7 @@
 from typing import Any
 
-from src.message import ChatMessageValues
-from src.providers.base_provider import BaseLLMProvider
+from src.model import ChatMessageValues
+from src.router.base_provider import BaseLLMProvider
 
 
 class MockLLMProvider(BaseLLMProvider):

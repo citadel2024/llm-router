@@ -1,10 +1,10 @@
 import random
 from typing import Optional
 
-from src.config import LogConfiguration
+from src.model import ChatMessageValues
+from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
-from src.config.config import LLMProviderConfig, LoadBalancerConfig
-from src.message.message import ChatMessageValues
+from src.config.config import LLMProviderConfig
 from src.load_balance.base import BaseLoadBalancer
 
 

@@ -1,29 +1,17 @@
 from __future__ import annotations
 
 import json
-import logging
-from typing import Union, Literal, Optional
+from typing import Optional
 from dataclasses import field, asdict, dataclass
 
+from src.config.log import LogConfiguration
 from src.utils.hash import generate_unique_id
 from src.config.retry import RetryConfig
 from src.config.cooldown import CooldownConfig
-from src.config.strategy import LoadBalancerStrategy
-from src.router.validator import validate_integer
-from src.providers.base_provider import BaseLLMProvider
-
-
-@dataclass
-class LogConfiguration:
-    # In dev stage, we use colored logs.
-    # In prod stage, we use json formatted logs.
-    stage: Literal["dev", "prod"] = "dev"
-    level: Union[logging.FATAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG] = logging.DEBUG
-    log_dir: str = "logs"
-
-    def __post_init__(self):
-        if self.stage not in ["dev", "prod"]:
-            raise ValueError(f"Invalid stage value: {self.stage}")
+from src.config.fallback import FallbackConfig
+from src.utils.validator import validate_integer
+from src.config.load_balancer import LoadBalancerConfig, LoadBalancerStrategy
+from src.router.base_provider import BaseLLMProvider
 
 
 @dataclass
@@ -60,27 +48,8 @@ class LLMProviderConfig:
 
 
 @dataclass
-class LoadBalancerConfig:
-    strategy: LoadBalancerStrategy = LoadBalancerStrategy.CAPACITY_BASED_BALANCER
-    capacity_dimension: Optional[Literal["rpm", "tpm", "weight"]] = None
-
-    def __post_init__(self):
-        if self.strategy == LoadBalancerStrategy.CAPACITY_BASED_BALANCER:
-            if self.capacity_dimension not in ["rpm", "tpm", "weight"]:
-                raise ValueError(f"Invalid capacity dimension: {self.capacity_dimension}")
-
-
-@dataclass
-class FallbackConfig:
-    # fallback model group to another, {"GPT-4": ["GPT-3.5"]}
-    fallback_mapping: dict[str, list[str]] = field(default_factory=dict)
-
-
-@dataclass
 class RouterConfig:
-    # group name must be unique, so we use dict instead of list
     llm_provider_group: dict[str, list[LLMProviderConfig]]
-
     log_config: LogConfiguration = field(default_factory=LogConfiguration)
     load_balancer_config: LoadBalancerConfig = field(default_factory=LoadBalancerConfig)
     retry_config: RetryConfig = field(default_factory=RetryConfig)
@@ -94,6 +63,7 @@ class RouterConfig:
         :param indent:
         :return:
         """
+        # setup separators to remove spaces
         return json.dumps(asdict(self), default=str, indent=indent, separators=(",", ":"), sort_keys=True)
 
     def __post_init__(self):

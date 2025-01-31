@@ -2,8 +2,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
-from src.config.config import LogConfiguration, LLMProviderConfig, LoadBalancerConfig
+from src.config.config import LLMProviderConfig
 from src.utils.context import RouterContext, router_context
 from tests.mock_provider import MockLLMProvider
 from src.load_balance.capacity_based import CapacityBasedBalancer

@@ -2,7 +2,7 @@ import json
 from typing import Optional
 from dataclasses import field, asdict, dataclass
 
-from src.router.validator import validate_integer
+from src.utils.validator import validate_integer
 
 
 @dataclass

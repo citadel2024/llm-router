@@ -1,40 +1,8 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from src.model import RouterInput
-from src.utils.validator import validate_integer, validate_completion_inputs
-from src.exceptions.exceptions import InvalidInputError
-
-
-@pytest.mark.asyncio
-async def test_validate_completion_inputs_valid_text():
-    mock_async_func = AsyncMock()
-    decorated_func = validate_completion_inputs(mock_async_func)
-    arg = RouterInput(text="test", model_group="")
-    await decorated_func(arg)
-
-    mock_async_func.assert_awaited_once_with(arg)
-
-
-@pytest.mark.asyncio
-async def test_validate_completion_inputs_valid_messages():
-    mock_async_func = AsyncMock()
-    decorated_func = validate_completion_inputs(mock_async_func)
-    arg = RouterInput(messages=[{"role": "user"}], model_group="")
-    await decorated_func(arg)
-
-    mock_async_func.assert_awaited_once_with(arg)
-
-
-@pytest.mark.asyncio
-async def test_validate_completion_inputs_invalid_input():
-    mock_async_func = AsyncMock()
-    decorated_func = validate_completion_inputs(mock_async_func)
-    arg = RouterInput(model_group="")
-
-    with pytest.raises(InvalidInputError):
-        await decorated_func(arg)
+from src.utils.validator import validate_integer
 
 
 def test_validate_integer_valid():

@@ -4,11 +4,10 @@ import asyncio
 from datetime import datetime
 from dataclasses import asdict, dataclass
 
-from src.config import LogConfiguration
+from src.config import CooldownConfig, LogConfiguration
 from src.cache.base import BaseCache
 from src.router.log import get_logger
 from src.config.config import LLMProviderConfig
-from src.config.cooldown import CooldownConfig
 from src.exceptions.exceptions import (
     NotFoundError,
     APIStatusError,
@@ -94,7 +93,7 @@ class ProviderStatusManager:
         """
         healthy = self.provider_groups.get(model_group)
         if not healthy:
-            raise ModelGroupNotFound("Model group not found", model_group)
+            raise ModelGroupNotFound("Model group not found")
         self.logger.info(f"Healthy providers for group {model_group}: {healthy}")
         return healthy
 

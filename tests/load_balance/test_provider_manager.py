@@ -4,10 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from src.config import LogConfiguration
+from src.config import CooldownConfig, LogConfiguration, AllowedFailsPolicy
 from src.cache.base import BaseCache
 from src.config.config import LLMProviderConfig
-from src.config.cooldown import CooldownConfig, AllowedFailsPolicy
 from tests.mock_provider import MockLLMProvider
 from src.exceptions.exceptions import (
     RateLimitError,
@@ -55,7 +54,7 @@ def mock_rate_limit():
 def mock_request_timeout():
     return RequestTimeoutError(
         "Request timeout",
-        response=httpx.Response(status_code=404, request=httpx.Request("GET", "")),
+        response=httpx.Response(status_code=408, request=httpx.Request("GET", "")),
     )
 
 

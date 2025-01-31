@@ -3,10 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.config import LogConfiguration
+from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
-from src.config.config import LoadBalancerConfig
-from src.message.message import ChatCompletionUserMessage
+from src.model.message import ChatCompletionUserMessage
 from src.load_balance.random import RandomBalancer
 
 

@@ -1,9 +1,10 @@
 import math
 from typing import Optional
 
-from src.message import ChatMessageValues
+from src.model import ChatMessageValues
+from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
-from src.config.config import LogConfiguration, LLMProviderConfig, LoadBalancerConfig
+from src.config.config import LLMProviderConfig
 from src.token.counter import TokenCounter
 from src.load_balance.base import BaseLoadBalancer
 from src.load_balance.rpm_tpm_manager import RpmTpmManager

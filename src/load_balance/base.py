@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
 from src.router.log import get_logger
-from src.config.config import LogConfiguration, LLMProviderConfig, LoadBalancerConfig
-from src.message.message import ChatMessageValues
+from src.config.config import LLMProviderConfig
+from src.model.message import ChatMessageValues
 
 
 class BaseLoadBalancer(ABC):
