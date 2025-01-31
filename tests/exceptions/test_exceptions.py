@@ -8,6 +8,7 @@ from src.exceptions.exceptions import (
     RateLimitError,
     BadRequestError,
     ModelGroupNotFound,
+    InternalServerError,
     RetryExhaustedError,
     APIConnectionRefusedError,
     APINetworkUnreachableError,
@@ -60,6 +61,16 @@ def test_context_window_error_validation(mocker):
     assert error.status_code == 400
     assert not error.is_retryable()
     assert error.is_fallback()
+
+
+def test_internal_server_error_validation(mocker):
+    mock_response = mocker.Mock(spec=httpx.Response)
+    mock_response.status_code = 500
+    mock_response.headers = {}
+    error = InternalServerError("message", response=mock_response)
+    assert error.status_code == 500
+    assert not error.is_retryable()
+    assert not error.is_fallback()
 
 
 def test_invalid_status_code_validation():

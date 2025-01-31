@@ -144,3 +144,7 @@ class RetryExhaustedError(BadRequestError):
         super().__init__(message, router_request=router_request, response=response, body=body)
         self.last_exception = last_exception
         self.retry_count = retry_count
+
+
+class InternalServerError(APIStatusError):
+    status_code: Literal[500] = 500
