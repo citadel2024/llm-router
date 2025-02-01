@@ -97,16 +97,14 @@ class RetryManager:
         await self.rpm_tpm_manager.increase_tpm_occupied(ctx.model_group, ctx.provider_id, ctx.token_count)
 
     async def after(self, retry_state: RetryCallState):
+        # If the retry succeeded, this `after` function will not be called
+        # So we need to release the occupied resources here and update cost at the end of `execute` function
         self._log_retrying_msg("After", retry_state)
         ctx: RouterContext = router_context.get()
         if retry_state.outcome.failed:
             self.logger.error(f"Model call failed, {retry_state.outcome.exception()}")
             await self.rpm_tpm_manager.release_rpm_occupied(ctx.model_group, ctx.provider_id)
             await self.rpm_tpm_manager.release_tpm_occupied(ctx.model_group, ctx.provider_id, ctx.token_count)
-        else:
-            self.logger.debug(f"Model call succeeded")
-            await self.rpm_tpm_manager.update_rpm_used_usage(ctx.model_group, ctx.provider_id)
-            await self.rpm_tpm_manager.update_tpm_used_usage(ctx.model_group, ctx.provider_id, ctx.token_count)
 
     @staticmethod
     def should_retry(exc: BaseException) -> bool:
@@ -151,7 +149,13 @@ class RetryManager:
             reraise=True,
             retry_error_callback=self.retry_error_callback,
         )
-        return await retryer(self.wrapped_fn, val)
+        result =  await retryer(self.wrapped_fn, val)
+        # update cost if succeed
+        ctx: RouterContext = router_context.get()
+        self.logger.debug(f"Model call succeeded")
+        await self.rpm_tpm_manager.update_rpm_used_usage(ctx.model_group, ctx.provider_id)
+        await self.rpm_tpm_manager.update_tpm_used_usage(ctx.model_group, ctx.provider_id, ctx.token_count)
+        return result
 
     @staticmethod
     def get_num_retries_from_retry_policy(
