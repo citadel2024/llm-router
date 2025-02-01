@@ -26,4 +26,3 @@ class RetryStrategy(Enum):
 class RetryConfig:
     max_attempt: int = 3
     retry_policy: Optional[RetryPolicy] = None
-    retry_strategy: RetryStrategy = RetryStrategy.EXPONENTIAL_BACKOFF
