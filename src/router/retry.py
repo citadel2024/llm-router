@@ -12,7 +12,7 @@ from tenacity import (
 
 from src.config import RetryPolicy, LogConfiguration
 from src.router.log import get_logger
-from src.model.input import UserInput
+from src.model.input import UserParams
 from src.utils.context import RouterContext, router_context
 from src.exceptions.exceptions import (
     APIError,
@@ -129,7 +129,7 @@ class RetryManager:
                 return retry_state.attempt_number >= effective_max
         return False
 
-    async def execute(self, val: UserInput) -> Any:
+    async def execute(self, val: UserParams) -> Any:
         exponential_backoff = wait_combine(wait_exponential(multiplier=self.multiplier, max=10), wait_random(0, 1))
         fixed_wait = wait_fixed(self.fix_wait_seconds)
 
@@ -149,7 +149,7 @@ class RetryManager:
             reraise=True,
             retry_error_callback=self.retry_error_callback,
         )
-        result =  await retryer(self.wrapped_fn, val)
+        result = await retryer(self.wrapped_fn, val)
         # update cost if succeed
         ctx: RouterContext = router_context.get()
         self.logger.debug(f"Model call succeeded")

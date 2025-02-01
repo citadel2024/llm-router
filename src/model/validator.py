@@ -1,12 +1,12 @@
 from functools import wraps
 
-from src.model.input import RouterInput
+from src.model.input import RouterParams
 from src.exceptions.exceptions import InvalidInputError
 
 
 def validate_completion_inputs(func):
     @wraps(func)
-    async def wrapper(arg: RouterInput):
+    async def wrapper(arg: RouterParams):
         text = arg.text
         messages = arg.messages
         if not (text or messages):

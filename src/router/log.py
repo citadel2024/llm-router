@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
-from src.config.config import LogConfiguration
+from src.config import LogConfiguration
 
 
 class ColorCodes:

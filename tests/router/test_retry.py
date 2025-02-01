@@ -4,7 +4,7 @@ import pytest
 from tenacity import RetryCallState
 
 from src.config import RetryPolicy, LogConfiguration
-from src.model.input import UserInput
+from src.model.input import UserParams
 from src.router.retry import RetryManager
 from src.utils.context import RouterContext, router_context
 from src.exceptions.exceptions import RateLimitError, AuthenticationError, RetryExhaustedError, NoProviderAvailableError
@@ -50,7 +50,7 @@ def retry_manager_with_policy(mock_wrapped_fn, mock_rpm_tpm_manager):
 async def test_execute_success(mock_wrapped_fn, retry_manager):
     router_context.set(RouterContext(model_group="m", provider_id="p", token_count=0))
     mock_wrapped_fn.return_value = "success"
-    result = await retry_manager.execute(UserInput(model_group="test_group", text="text"))
+    result = await retry_manager.execute(UserParams(model_group="test_group", text="text"))
     assert result == "success"
     mock_wrapped_fn.assert_awaited_once()
 
@@ -61,7 +61,7 @@ async def test_retry_until_success(mock_wrapped_fn, retry_manager):
     mock_wrapped_fn.side_effect = AsyncMock(
         side_effect=[RateLimitError("rate limit"), RateLimitError("rate limit"), "success"]
     )
-    result = await retry_manager.execute(UserInput(model_group="test_group", text="text"))
+    result = await retry_manager.execute(UserParams(model_group="test_group", text="text"))
     assert result == "success"
     assert mock_wrapped_fn.await_count == 3
 
@@ -71,7 +71,7 @@ async def test_stop_on_non_retryable_exception(mock_wrapped_fn, retry_manager):
     router_context.set(RouterContext(model_group="m", provider_id="p", token_count=0))
     mock_wrapped_fn.side_effect = AuthenticationError("auth error")
     with pytest.raises(AuthenticationError):
-        await retry_manager.execute(UserInput(model_group="test_group", text="text"))
+        await retry_manager.execute(UserParams(model_group="test_group", text="text"))
     mock_wrapped_fn.assert_awaited_once()
 
 
@@ -80,7 +80,7 @@ async def test_max_attempt_exhausted(mock_wrapped_fn, retry_manager):
     router_context.set(RouterContext(model_group="m", provider_id="p", token_count=0))
     mock_wrapped_fn.side_effect = [RateLimitError("rate limit")] * 3
     with pytest.raises(RetryExhaustedError):
-        await retry_manager.execute(UserInput(model_group="test_group", text="text"))
+        await retry_manager.execute(UserParams(model_group="test_group", text="text"))
     assert mock_wrapped_fn.await_count == 3
 
 
@@ -90,7 +90,7 @@ async def test_retry_policy_limits(mock_wrapped_fn, retry_manager_with_policy):
     mock_wrapped_fn.side_effect = [RateLimitError("rate limit")] * 3
     retry_manager_with_policy.max_attempt = 5
     with pytest.raises(RetryExhaustedError):
-        await retry_manager_with_policy.execute(UserInput(model_group="test_group", text="text"))
+        await retry_manager_with_policy.execute(UserParams(model_group="test_group", text="text"))
     assert mock_wrapped_fn.await_count == 2
 
 
@@ -100,7 +100,7 @@ async def test_rpm_tpm_updates(mock_wrapped_fn, mock_rpm_tpm_manager, retry_mana
     token = router_context.set(ctx)
     try:
         mock_wrapped_fn.side_effect = [RateLimitError("rate limit"), "success"]
-        await retry_manager.execute(UserInput(model_group="test_group", text="text"))
+        await retry_manager.execute(UserParams(model_group="test_group", text="text"))
         assert mock_rpm_tpm_manager.increase_rpm_occupied.call_count == 2
         assert mock_rpm_tpm_manager.release_rpm_occupied.call_count == 1
         assert mock_rpm_tpm_manager.update_rpm_used_usage.call_count == 1
@@ -113,7 +113,7 @@ async def test_should_stop_exceptions(mock_wrapped_fn, retry_manager):
     router_context.set(RouterContext(model_group="m", provider_id="p", token_count=0))
     mock_wrapped_fn.side_effect = NoProviderAvailableError()
     with pytest.raises(NoProviderAvailableError):
-        await retry_manager.execute(UserInput(model_group="test_group", text="text"))
+        await retry_manager.execute(UserParams(model_group="test_group", text="text"))
     mock_wrapped_fn.assert_awaited_once()
 
 
