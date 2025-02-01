@@ -1,8 +1,6 @@
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import httpx
-
-from src.model.input import RouterInput
 
 
 class RetryMixin:
@@ -17,8 +15,13 @@ class RouterError(Exception, RetryMixin, FallbackMixin):
     def is_retryable(self):
         return self.retryable
 
+    # TODO not use
     def is_fallback(self):
         return self.fallback
+
+
+class NoProviderAvailableError(RouterError):
+    pass
 
 
 class APIError(RouterError):
@@ -65,13 +68,13 @@ class APIStatusError(APIError):
     response: httpx.Response
     status_code: int
     request_id: str | None
-    router_request: Optional[RouterInput]
+    router_request: Optional[Any]  # Unused
 
     def __init__(
         self,
         message: str,
         *,
-        router_request: Optional[RouterInput] = None,
+        router_request: Optional[Any] = None,
         response: Optional[httpx.Response] = None,
         body: Optional[object] = None,
     ) -> None:
@@ -129,21 +132,21 @@ class RateLimitError(APIStatusError):
 
 class RetryExhaustedError(BadRequestError):
     last_exception: Exception
-    retry_count: int
+    attempt_number: int
 
     def __init__(
         self,
         message: str,
         last_exception: Exception,
-        retry_count: int = 0,
+        attempt_number: int = 0,
         *,
-        router_request: Optional[RouterInput] = None,
+        router_request: Optional[Any] = None,
         response: Optional[httpx.Response] = None,
         body: Optional[object] = None,
     ):
         super().__init__(message, router_request=router_request, response=response, body=body)
         self.last_exception = last_exception
-        self.retry_count = retry_count
+        self.attempt_number = attempt_number
 
 
 class InternalServerError(APIStatusError):
