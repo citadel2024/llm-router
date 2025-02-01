@@ -1,5 +1,5 @@
 import random
-from unittest.mock import Mock
+from unittest.mock import Mock, AsyncMock
 
 import pytest
 
@@ -7,6 +7,18 @@ from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
 from src.model.message import ChatCompletionUserMessage
 from src.load_balance.random import RandomBalancer
+from src.load_balance.rpm_tpm_manager import RpmTpmManager
+
+
+@pytest.fixture
+def mock_cache():
+    cache = AsyncMock()
+    return cache
+
+
+@pytest.fixture
+def mock_rpm_tpm_manager(mock_cache):
+    return RpmTpmManager(mock_cache, LogConfiguration())
 
 
 @pytest.fixture
@@ -18,10 +30,10 @@ def mock_dependencies():
     return lb_cache, log_cfg, load_balancer_config
 
 
-def test_random_balancer_initialization(mock_dependencies):
+def test_random_balancer_initialization(mock_dependencies, mock_rpm_tpm_manager):
     """Test that RandomBalancer can be initialized correctly."""
     lb_cache, log_cfg, load_balancer_config = mock_dependencies
-    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config)
+    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config, mock_rpm_tpm_manager)
 
     assert balancer is not None
     assert balancer.lb_cache == lb_cache
@@ -29,20 +41,20 @@ def test_random_balancer_initialization(mock_dependencies):
 
 
 @pytest.mark.asyncio
-async def test_schedule_provider_empty_providers(mock_dependencies):
+async def test_schedule_provider_empty_providers(mock_dependencies, mock_rpm_tpm_manager):
     """Test scheduling when no healthy providers are available."""
     lb_cache, log_cfg, load_balancer_config = mock_dependencies
-    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config)
+    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config, mock_rpm_tpm_manager)
 
     result = await balancer.schedule_provider("test_group", [])
     assert result is None
 
 
 @pytest.mark.asyncio
-async def test_schedule_provider_single_provider(mock_dependencies):
+async def test_schedule_provider_single_provider(mock_dependencies, mock_rpm_tpm_manager):
     """Test scheduling when only one provider is available."""
     lb_cache, log_cfg, load_balancer_config = mock_dependencies
-    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config)
+    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config, mock_rpm_tpm_manager)
 
     providers = [{"name": "provider1", "endpoint": "http://test1.com"}]
     result = await balancer.schedule_provider("test_group", providers)
@@ -51,10 +63,10 @@ async def test_schedule_provider_single_provider(mock_dependencies):
 
 
 @pytest.mark.asyncio
-async def test_schedule_provider_multiple_providers(mock_dependencies):
+async def test_schedule_provider_multiple_providers(mock_dependencies, mock_rpm_tpm_manager):
     """Test scheduling with multiple providers."""
     lb_cache, log_cfg, load_balancer_config = mock_dependencies
-    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config)
+    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config, mock_rpm_tpm_manager)
 
     providers = [
         {"name": "provider1", "endpoint": "http://test1.com"},
@@ -74,10 +86,10 @@ async def test_schedule_provider_multiple_providers(mock_dependencies):
 
 
 @pytest.mark.asyncio
-async def test_schedule_provider_with_messages(mock_dependencies):
+async def test_schedule_provider_with_messages(mock_dependencies, mock_rpm_tpm_manager):
     """Test scheduling with additional messages' parameter."""
     lb_cache, log_cfg, load_balancer_config = mock_dependencies
-    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config)
+    balancer = RandomBalancer(lb_cache, log_cfg, load_balancer_config, mock_rpm_tpm_manager)
 
     providers = [{"name": "provider1", "endpoint": "http://test1.com"}]
     messages = [ChatCompletionUserMessage(role="user", content="Test message")]

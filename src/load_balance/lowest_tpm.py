@@ -5,33 +5,37 @@ from src.model import ChatMessageValues
 from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
 from src.config.config import LLMProviderConfig
-from src.token.counter import TokenCounter
+from src.utils.context import RouterContext, router_context
 from src.load_balance.base import BaseLoadBalancer
 from src.load_balance.rpm_tpm_manager import RpmTpmManager
 
 
 class LowestTPMBalancer(BaseLoadBalancer):
-    def __init__(self, lb_cache: BaseCache, log_cfg: LogConfiguration, load_balancer_config: LoadBalancerConfig):
+    def __init__(
+        self,
+        lb_cache: BaseCache,
+        log_cfg: LogConfiguration,
+        load_balancer_config: LoadBalancerConfig,
+        rpm_tpm_manager: RpmTpmManager,
+    ):
         """
         Load balancer that selects the provider with the lowest TPM and filters out providers that are not available in RPM.
         :param lb_cache:
         :param log_cfg:
         """
-        super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
-        self.tc = TokenCounter(log_cfg)
-        self.rpm_tpm_manager = RpmTpmManager(lb_cache, log_cfg)
+        super().__init__(lb_cache, __name__, log_cfg, load_balancer_config, rpm_tpm_manager)
 
     async def schedule_provider(
         self,
         group: str,
         healthy_providers: list[LLMProviderConfig],
-        text: Optional[str] = None,
-        messages: list[ChatMessageValues] = None,
+        text: Optional[str] = None,  # noqa
+        messages: list[ChatMessageValues] = None,  # noqa
     ) -> Optional[LLMProviderConfig]:
+        ctx: RouterContext = router_context.get()
         # Since we don't choose a model, we try to get the estimated token count from the messages
-        input_tokens = self.tc.token_counter(messages=messages, text=text)
-        self.logger.debug(f"input token: {input_tokens}")
-        return await self._find_optimal_provider(group, healthy_providers, input_tokens)
+        self.logger.debug(f"input token: {ctx.token_count}")
+        return await self._find_optimal_provider(group, healthy_providers, ctx.token_count)
 
     async def _find_optimal_provider(
         self, group: str, providers: list[LLMProviderConfig], input_tokens: int

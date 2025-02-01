@@ -29,8 +29,13 @@ def mock_lb_config():
 
 
 @pytest.fixture
-def mock_balancer(mock_lb_cache, mock_log_cfg, mock_lb_config):
-    instance = CapacityBasedBalancer(mock_lb_cache, mock_log_cfg, mock_lb_config)
+def mock_rpm_tpm_manager(mock_lb_cache):
+    return RpmTpmManager(mock_lb_cache, LogConfiguration())
+
+
+@pytest.fixture
+def mock_balancer(mock_lb_cache, mock_log_cfg, mock_lb_config, mock_rpm_tpm_manager):
+    instance = CapacityBasedBalancer(mock_lb_cache, mock_log_cfg, mock_lb_config, mock_rpm_tpm_manager)
     instance.logger = MagicMock()
     return instance
 
@@ -65,13 +70,15 @@ async def test_schedule_provider_selects_provider_correctly(mock_balancer, mock_
 
 
 @pytest.mark.asyncio
-async def test_capacity_based_balancer_exhaust_rpm(mock_lb_cache):
+async def test_capacity_based_balancer_exhaust_rpm(mock_lb_cache, mock_rpm_tpm_manager):
     provider1 = LLMProviderConfig(model_id="model1", impl=MagicMock(), rpm=5)
     provider1.id = "provider1"
     provider2 = LLMProviderConfig(model_id="model2", impl=MagicMock(), rpm=3)
     provider2.id = "provider2"
     healthy_providers = [provider1, provider2]
-    balancer = CapacityBasedBalancer(mock_lb_cache, LogConfiguration(), LoadBalancerConfig(capacity_dimension="rpm"))
+    balancer = CapacityBasedBalancer(
+        mock_lb_cache, LogConfiguration(), LoadBalancerConfig(capacity_dimension="rpm"), mock_rpm_tpm_manager
+    )
     selected_providers = []
     u0 = RpmTpmManager.Usage(used=0, occupying=0).serialize()
     u3 = RpmTpmManager.Usage(used=3, occupying=0).serialize()
@@ -81,7 +88,7 @@ async def test_capacity_based_balancer_exhaust_rpm(mock_lb_cache):
         side_effect=[u0, u3, u0, u3, u0, u3, u0, u3, u0, u3, u5, u0, u5, u0, u5, u0]
     )
     for _ in range(8):
-        router_context.set(RouterContext())
+        router_context.set(RouterContext(model_group="model_group", token_count=0))
         selected_provider = await balancer.schedule_provider("test_group", healthy_providers)
         if selected_provider:
             selected_providers.append(selected_provider.id)

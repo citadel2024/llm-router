@@ -21,9 +21,13 @@ def mock_rpm_tpm_manager(mock_cache):
     return manager
 
 
+def create_router_context():
+    return RouterContext(model_group="model_group", token_count=0)
+
+
 @pytest.mark.asyncio
 async def test_increase_rpm_occupied(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):
         await mock_rpm_tpm_manager.increase_rpm_occupied("group1", "provider1", 2)
 
@@ -35,7 +39,7 @@ async def test_increase_rpm_occupied(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_increase_tpm_occupied(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):
         await mock_rpm_tpm_manager.increase_tpm_occupied("group1", "provider1", 5)
 
@@ -46,7 +50,7 @@ async def test_increase_tpm_occupied(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_update_rpm_used_usage(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     initial_usage = {"used": 0, "occupying": 3}
     mock_cache.async_get_value.return_value = json.dumps(initial_usage)
 
@@ -60,7 +64,7 @@ async def test_update_rpm_used_usage(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_update_tpm_used_usage(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     initial_usage = {"used": 10, "occupying": 5}
     mock_cache.async_get_value.return_value = json.dumps(initial_usage)
 
@@ -74,7 +78,7 @@ async def test_update_tpm_used_usage(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_release_rpm_occupied(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     initial_usage = {"used": 2, "occupying": 5}
     mock_cache.async_get_value.return_value = json.dumps(initial_usage)
 
@@ -88,7 +92,7 @@ async def test_release_rpm_occupied(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_release_tpm_occupied(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     initial_usage = {"used": 8, "occupying": 4}
     mock_cache.async_get_value.return_value = json.dumps(initial_usage)
 
@@ -102,7 +106,7 @@ async def test_release_tpm_occupied(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_rpm_usage_at_minute_exists(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     mock_cache.async_get_value.return_value = json.dumps({"used": 5, "occupying": 3})
 
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):
@@ -113,7 +117,7 @@ async def test_rpm_usage_at_minute_exists(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_rpm_usage_at_minute_not_exists(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     mock_cache.async_get_value.return_value = None
 
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):
@@ -124,7 +128,7 @@ async def test_rpm_usage_at_minute_not_exists(mock_rpm_tpm_manager, mock_cache):
 
 @pytest.mark.asyncio
 async def test_lock_reuse(mock_rpm_tpm_manager):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):
         key1, lock1 = mock_rpm_tpm_manager._fetch_or_create_lock(Dimension.RPM, "group1", "provider1")
         key2, lock2 = mock_rpm_tpm_manager._fetch_or_create_lock(Dimension.RPM, "group1", "provider1")
@@ -135,7 +139,7 @@ async def test_lock_reuse(mock_rpm_tpm_manager):
 
 @pytest.mark.asyncio
 async def test_update_usage_no_data_logs_error(mock_rpm_tpm_manager, mock_cache):
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     mock_cache.async_get_value.return_value = None
 
     with patch.object(router_context.get(), "start_minute_str", return_value="202310101200"):

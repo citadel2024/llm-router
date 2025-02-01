@@ -6,15 +6,22 @@ from src.config import LogConfiguration, LoadBalancerConfig
 from src.cache.base import BaseCache
 from src.config.config import LLMProviderConfig
 from src.load_balance.base import BaseLoadBalancer
+from src.load_balance.rpm_tpm_manager import RpmTpmManager
 
 
 class RandomBalancer(BaseLoadBalancer):
-    def __init__(self, lb_cache: BaseCache, log_cfg: LogConfiguration, load_balancer_config: LoadBalancerConfig):
+    def __init__(
+        self,
+        lb_cache: BaseCache,
+        log_cfg: LogConfiguration,
+        load_balancer_config: LoadBalancerConfig,
+        rpm_tpm_manager: RpmTpmManager,
+    ):
         """
         :param lb_cache:
         :param log_cfg:
         """
-        super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
+        super().__init__(lb_cache, __name__, log_cfg, load_balancer_config, rpm_tpm_manager)
 
     async def schedule_provider(
         self,

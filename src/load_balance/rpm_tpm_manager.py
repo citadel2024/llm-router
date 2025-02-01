@@ -162,7 +162,7 @@ class RpmTpmManager:
         :param provider_id:
         :return:
         """
-        key = RpmTpmManager._build_rpm_tpm_key(dimension, group, provider_id)
+        key = self._build_rpm_tpm_key(dimension, group, provider_id)
         if key not in self.locks:
             self.locks[key] = asyncio.Lock()
         return key, self.locks[key]

@@ -28,8 +28,13 @@ def mock_load_balancer_config():
 
 
 @pytest.fixture
-def mock_balancer(mock_cache, mock_logger, mock_load_balancer_config):
-    return LowestTPMBalancer(mock_cache, mock_logger, mock_load_balancer_config)
+def mock_rpm_tpm_manager(mock_cache):
+    return RpmTpmManager(mock_cache, LogConfiguration())
+
+
+@pytest.fixture
+def mock_balancer(mock_cache, mock_logger, mock_load_balancer_config, mock_rpm_tpm_manager):
+    return LowestTPMBalancer(mock_cache, mock_logger, mock_load_balancer_config, mock_rpm_tpm_manager)
 
 
 @pytest.fixture
@@ -40,8 +45,13 @@ def mock_providers(mock_balancer):
     ]
 
 
+def create_router_context():
+    return RouterContext(model_group="model_group", token_count=0)
+
+
 @pytest.mark.asyncio
 async def test_select_provider_with_no_providers(mock_balancer):
+    router_context.set(create_router_context())
     result = await mock_balancer.schedule_provider("test-group", [], text="text")
     assert result is None
 
@@ -53,7 +63,7 @@ async def test_select_provider_no_usage_data(mock_balancer, mock_providers, mock
     rpm_data1 = RpmTpmManager.Usage(used=0, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data1, rpm_data1])
     messages = [{"role": "user", "content": "test"}]
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     result = await mock_balancer.schedule_provider("test-group", mock_providers, messages=messages)
 
     assert result == mock_providers[0]
@@ -74,7 +84,7 @@ async def test_find_optimal_provider(mock_balancer, mock_cache, mock_providers, 
     tpm_data2 = RpmTpmManager.Usage(used=current_tpm + 10, occupying=0).serialize()
     rpm_data = RpmTpmManager.Usage(used=5, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data, tpm_data2, rpm_data])
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     result = await mock_balancer._find_optimal_provider("group", mock_providers, input_tokens)
 
     if expected_id:
@@ -91,7 +101,7 @@ async def test_select_lowest_tpm(mock_balancer, mock_providers, mock_cache):
     rpm_data2 = RpmTpmManager.Usage(used=8, occupying=0).serialize()
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data2, rpm_data2])
     messages = [{"role": "user", "content": "test message"}]
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     result = await mock_balancer.schedule_provider("test-group", mock_providers, messages=messages)
 
     assert result is not None
@@ -108,7 +118,7 @@ async def test_select_from_one_candidate(mock_balancer, mock_providers, mock_cac
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data2, rpm_data2])
 
     messages = [{"role": "user", "content": "test message"}]
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     result = await mock_balancer.schedule_provider("test-group", mock_providers, messages=messages)
 
     assert result is not None
@@ -128,7 +138,7 @@ async def test_select_from_empty_rpm(mock_balancer, mock_cache):
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data, tpm_data2, rpm_data])
 
     messages = [{"role": "user", "content": "test message"}]
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     result = await mock_balancer.schedule_provider("test-group", providers, messages=messages)
 
     assert result is not None
@@ -149,7 +159,7 @@ async def test_select_from_empty_tpm(mock_balancer, mock_cache):
     mock_cache.async_get_value = AsyncMock(side_effect=[tpm_data1, rpm_data1, tpm_data1, rpm_data2])
 
     messages = [{"role": "user", "content": "test message"}]
-    router_context.set(RouterContext())
+    router_context.set(create_router_context())
     result = await mock_balancer.schedule_provider("test-group", providers, messages=messages)
 
     assert result is not None

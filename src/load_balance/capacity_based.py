@@ -10,15 +10,20 @@ from src.load_balance.rpm_tpm_manager import RpmTpmManager
 
 
 class CapacityBasedBalancer(BaseLoadBalancer):
-    def __init__(self, lb_cache: BaseCache, log_cfg: LogConfiguration, load_balancer_config: LoadBalancerConfig):
+    def __init__(
+        self,
+        lb_cache: BaseCache,
+        log_cfg: LogConfiguration,
+        load_balancer_config: LoadBalancerConfig,
+        rpm_tpm_manager: RpmTpmManager,
+    ):
         """
         If the user has specified a weight, rpm, or tpm for a provider, this balancer will select a provider based on the specified metric.
         If no metric is specified, it will return a random provider from the list of healthy providers.
         :param lb_cache:
         :param log_cfg:
         """
-        super().__init__(lb_cache, __name__, log_cfg, load_balancer_config)
-        self.rpm_tpm_manager = RpmTpmManager(lb_cache, log_cfg)
+        super().__init__(lb_cache, __name__, log_cfg, load_balancer_config, rpm_tpm_manager)
 
     async def schedule_provider(
         self,
