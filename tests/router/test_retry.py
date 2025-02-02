@@ -24,7 +24,7 @@ def mock_rpm_tpm_manager():
 @pytest.fixture
 def retry_manager(mock_wrapped_fn, mock_rpm_tpm_manager):
     return RetryManager(
-        wrapped_fn=mock_wrapped_fn,
+        async_wrapped_fn=mock_wrapped_fn,
         log_cfg=LogConfiguration(),
         rpm_tpm_manager=mock_rpm_tpm_manager,
         max_attempt=3,
@@ -37,7 +37,7 @@ def retry_manager(mock_wrapped_fn, mock_rpm_tpm_manager):
 @pytest.fixture
 def retry_manager_with_policy(mock_wrapped_fn, mock_rpm_tpm_manager):
     return RetryManager(
-        wrapped_fn=mock_wrapped_fn,
+        async_wrapped_fn=mock_wrapped_fn,
         log_cfg=LogConfiguration(),
         rpm_tpm_manager=mock_rpm_tpm_manager,
         retry_policy=RetryPolicy(RateLimitErrorRetries=2),
@@ -122,7 +122,7 @@ def test_log_retrying_msg(mock_get_logger, mock_wrapped_fn, mock_rpm_tpm_manager
     mock_logger = MagicMock()
     mock_get_logger.return_value = mock_logger
     retry_manager = RetryManager(
-        wrapped_fn=mock_wrapped_fn,
+        async_wrapped_fn=mock_wrapped_fn,
         log_cfg=LogConfiguration(),
         rpm_tpm_manager=mock_rpm_tpm_manager,
         max_attempt=3,

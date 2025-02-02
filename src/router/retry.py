@@ -15,25 +15,22 @@ from src.router.log import get_logger
 from src.model.input import UserParams
 from src.utils.context import RouterContext, router_context
 from src.exceptions.exceptions import (
+    SHOULD_FALLBACK_EXCEPTIONS,
     APIError,
     RateLimitError,
-    BadRequestError,
     AuthenticationError,
     InternalServerError,
     RequestTimeoutError,
     RetryExhaustedError,
-    NoProviderAvailableError,
     ContentPolicyViolationError,
 )
 from src.load_balance.rpm_tpm_manager import RpmTpmManager
 
 
 class RetryManager:
-    _SHOULD_STOP_EXCEPTIONS = (NoProviderAvailableError,)
-
     def __init__(
         self,
-        wrapped_fn: Callable[..., Awaitable],
+        async_wrapped_fn: Callable[..., Awaitable],
         log_cfg: LogConfiguration,
         rpm_tpm_manager: RpmTpmManager,
         max_attempt: int = 3,
@@ -49,13 +46,13 @@ class RetryManager:
         Under retry_policy, different error types have isolated retry counts. Each error type uses its own max_retries without affecting others.
         3. Global Cap (num_retries_per_request)
         Total retries across all errors never exceed num_retries_per_request. This acts as a hard upper limit for safety.
-        :param wrapped_fn:
+        :param async_wrapped_fn:
         :param log_cfg:
         :param max_attempt:
         :param max_delay:
         :param retry_policy:
         """
-        self.wrapped_fn = wrapped_fn
+        self.async_wrapped_fn = async_wrapped_fn
         self.max_attempt = max_attempt
         self.max_delay = max_delay
         self.retry_policy = retry_policy
@@ -71,6 +68,7 @@ class RetryManager:
         :param retry_state:
         :return:
         """
+        self.logger.error(f"Model call failed, {retry_state.outcome.exception()}")
         if retry_state.outcome and retry_state.outcome.failed:
             exc = retry_state.outcome.exception()
             raise RetryExhaustedError(
@@ -96,15 +94,16 @@ class RetryManager:
         await self.rpm_tpm_manager.increase_rpm_occupied(ctx.model_group, ctx.provider_id)
         await self.rpm_tpm_manager.increase_tpm_occupied(ctx.model_group, ctx.provider_id, ctx.token_count)
 
-    async def after(self, retry_state: RetryCallState):
-        # If the retry succeeded, this `after` function will not be called
-        # So we need to release the occupied resources here and update cost at the end of `execute` function
-        self._log_retrying_msg("After", retry_state)
+    async def release_resources(self):
         ctx: RouterContext = router_context.get()
+        await self.rpm_tpm_manager.release_rpm_occupied(ctx.model_group, ctx.provider_id)
+        await self.rpm_tpm_manager.release_tpm_occupied(ctx.model_group, ctx.provider_id, ctx.token_count)
+
+    async def after(self, retry_state: RetryCallState):
+        self._log_retrying_msg("After", retry_state)
         if retry_state.outcome.failed:
             self.logger.error(f"Model call failed, {retry_state.outcome.exception()}")
-            await self.rpm_tpm_manager.release_rpm_occupied(ctx.model_group, ctx.provider_id)
-            await self.rpm_tpm_manager.release_tpm_occupied(ctx.model_group, ctx.provider_id, ctx.token_count)
+            await self.release_resources()
 
     @staticmethod
     def should_retry(exc: BaseException) -> bool:
@@ -120,7 +119,7 @@ class RetryManager:
         if retry_state.outcome and retry_state.outcome.failed:
             exc = retry_state.outcome.exception()
             # If the exception is in the list of exceptions that should stop immediately
-            if isinstance(exc, self._SHOULD_STOP_EXCEPTIONS):
+            if isinstance(exc, SHOULD_FALLBACK_EXCEPTIONS):
                 return True
             # Retry policy limit
             policy_max = self.get_num_retries_from_retry_policy(exc, self.retry_policy)
@@ -130,6 +129,8 @@ class RetryManager:
         return False
 
     async def execute(self, val: UserParams) -> Any:
+        # If the retry succeeded or throw non-retryable exception, this `after` function will not be called
+        # So we need to release the occupied resources here and update cost at the end of `execute` function
         exponential_backoff = wait_combine(wait_exponential(multiplier=self.multiplier, max=10), wait_random(0, 1))
         fixed_wait = wait_fixed(self.fix_wait_seconds)
 
@@ -140,22 +141,27 @@ class RetryManager:
                     return exponential_backoff(retry_state)
             return fixed_wait(retry_state)
 
-        retryer = AsyncRetrying(
-            wait=custom_wait,
-            stop=self.should_stop,
-            retry=retry_if_exception(self.should_retry),
-            before=self.before,
-            after=self.after,
-            reraise=True,
-            retry_error_callback=self.retry_error_callback,
-        )
-        result = await retryer(self.wrapped_fn, val)
-        # update cost if succeed
-        ctx: RouterContext = router_context.get()
-        self.logger.debug(f"Model call succeeded")
-        await self.rpm_tpm_manager.update_rpm_used_usage(ctx.model_group, ctx.provider_id)
-        await self.rpm_tpm_manager.update_tpm_used_usage(ctx.model_group, ctx.provider_id, ctx.token_count)
-        return result
+        try:
+            retryer = AsyncRetrying(
+                wait=custom_wait,
+                stop=self.should_stop,
+                retry=retry_if_exception(self.should_retry),
+                before=self.before,
+                after=self.after,
+                reraise=True,
+                retry_error_callback=self.retry_error_callback,
+            )
+            result = await retryer(self.async_wrapped_fn, val)
+            # update cost if succeed
+            ctx: RouterContext = router_context.get()
+            self.logger.debug(f"Model call succeeded")
+            await self.rpm_tpm_manager.update_rpm_used_usage(ctx.model_group, ctx.provider_id)
+            await self.rpm_tpm_manager.update_tpm_used_usage(ctx.model_group, ctx.provider_id, ctx.token_count)
+            return result
+        except Exception as e:
+            self.logger.error("Error in retry manager", exc_info=True)
+            await self.release_resources()
+            raise e
 
     @staticmethod
     def get_num_retries_from_retry_policy(
@@ -165,7 +171,6 @@ class RetryManager:
         if not retry_policy:
             return None
         exception_mapping = {
-            BadRequestError: "BadRequestErrorRetries",
             AuthenticationError: "AuthenticationErrorRetries",
             RequestTimeoutError: "TimeoutErrorRetries",
             RateLimitError: "RateLimitErrorRetries",
