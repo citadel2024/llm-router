@@ -6,7 +6,6 @@ from dataclasses import asdict, dataclass
 
 @dataclass
 class RetryPolicy:
-    BadRequestErrorRetries: Optional[int] = None
     AuthenticationErrorRetries: Optional[int] = None
     TimeoutErrorRetries: Optional[int] = None
     RateLimitErrorRetries: Optional[int] = None
