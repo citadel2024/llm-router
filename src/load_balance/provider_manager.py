@@ -9,10 +9,10 @@ from src.cache.base import BaseCache
 from src.router.log import get_logger
 from src.config.config import LLMProviderConfig
 from src.exceptions.exceptions import (
-    NotFoundError,
+    CRITICAL_EXCEPTIONS,
+    TEMPORARY_EXCEPTIONS,
     APIStatusError,
     RateLimitError,
-    BadRequestError,
     ModelGroupNotFound,
     AuthenticationError,
     RequestTimeoutError,
@@ -42,9 +42,6 @@ class CooldownState:
 
 
 class ProviderStatusManager:
-    _CRITICAL_EXCEPTIONS = (RateLimitError, AuthenticationError, NotFoundError)
-    _TEMPORARY_EXCEPTIONS = (RequestTimeoutError,)
-
     def __init__(
         self,
         log_cfg: LogConfiguration,
@@ -164,7 +161,6 @@ class ProviderStatusManager:
         :return:
         """
         exception_map = {
-            BadRequestError: self.allowed_fails_policy.BadRequestErrorAllowedFails,
             AuthenticationError: self.allowed_fails_policy.AuthenticationErrorAllowedFails,
             RequestTimeoutError: self.allowed_fails_policy.TimeoutErrorAllowedFails,
             RateLimitError: self.allowed_fails_policy.RateLimitErrorAllowedFails,
@@ -186,21 +182,16 @@ class ProviderStatusManager:
         current_minute = datetime.now().strftime("%Y%m%d%H%M")
         return f"cooldown:{provider_id}:{current_minute}"
 
-    def _is_critical_failure(self, exception: APIStatusError) -> bool:
-        return isinstance(exception, self._CRITICAL_EXCEPTIONS)
-
-    def _is_temporary_failure(self, exception: APIStatusError) -> bool:
-        return isinstance(exception, self._TEMPORARY_EXCEPTIONS)
-
-    def _is_cooldown_required_for_exception(self, exception: APIStatusError) -> bool:
+    @staticmethod
+    def _is_cooldown_required_for_exception(exception: APIStatusError) -> bool:
         """
         Return True if exception is in critical exceptions, or http code >= 500
         :param exception:
         :return:
         """
-        if self._is_critical_failure(exception):
+        if isinstance(exception, CRITICAL_EXCEPTIONS):
             return True
-        if self._is_temporary_failure(exception):
+        if isinstance(exception, TEMPORARY_EXCEPTIONS):
             return False
         exception_status = exception.status_code
         if CLIENT_ERROR_MIN_STATUS <= exception_status < CLIENT_ERROR_MAX_STATUS:

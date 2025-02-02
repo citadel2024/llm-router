@@ -69,7 +69,7 @@ def test_internal_server_error_validation(mocker):
     mock_response.headers = {}
     error = InternalServerError("message", response=mock_response)
     assert error.status_code == 500
-    assert not error.is_retryable()
+    assert error.is_retryable()
     assert not error.is_fallback()
 
 
@@ -83,13 +83,13 @@ def test_retry_exhausted_error_attributes():
     error = RetryExhaustedError(
         "exhausted",
         mock_exception,
-        retry_count=3,
+        attempt_number=3,
         response=httpx.Response(400, request=httpx.Request("GET", "http://test.url")),
     )
     assert error.last_exception is mock_exception
-    assert error.retry_count == 3
+    assert error.attempt_number == 3
     assert not error.is_retryable()
-    assert not error.is_fallback()
+    assert error.is_fallback()
 
 
 def test_content_policy_error_inheritance():
