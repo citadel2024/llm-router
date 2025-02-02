@@ -1,4 +1,4 @@
-.PHONY: prepare clean test format wikipage extract_relation
+.PHONY: install clean test format wikipage extract_relation
 
 VERSION?=1.0.0
 GIT_COMMIT=$$(git rev-parse --short HEAD)
@@ -9,7 +9,7 @@ PYTHON_DIR=python
 UV = uv
 UV_RUN = $(UV) run
 
-prepare:
+install:
 	$(UV) sync --all-extras --dev
 clean:
 	$(UV) cache clean
