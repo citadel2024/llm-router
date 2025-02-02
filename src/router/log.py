@@ -62,7 +62,7 @@ def get_logger(name: str, log_cfg: LogConfiguration) -> logging.Logger:
     """
     logger = logging.getLogger(name)
     if logger.handlers:
-        logger.warning("Logger already configured")
+        logger.warning(f"Logger already configured {name} {log_cfg}")
         return logger
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(message)s"
     logger.setLevel(log_cfg.level)
