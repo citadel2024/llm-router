@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: "Install uv"
         uses: astral-sh/setup-uv@v5
       - name: "Set up Python"
@@ -27,4 +26,8 @@ jobs:
       - name: "Install the project"
         run: make install
       - name: "Run tests"
-        run: make test
+        run: uv run pytest tests --cov=. --cov-fail-under=90 --cov-report xml
+      - name: "Upload coverage reports to Codecov"
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

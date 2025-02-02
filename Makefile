@@ -14,7 +14,7 @@ install:
 clean:
 	$(UV) cache clean
 test:
-	$(UV_RUN) pytest
+	$(UV_RUN) pytest tests --cov=. --cov-fail-under=90 --cov-report term
 format:
 	$(UV_RUN) ruff check --fix
 	$(UV_RUN) ruff format
